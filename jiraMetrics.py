@@ -17,6 +17,7 @@ from openpyxl import load_workbook
 from openpyxl.chart import BarChart, Series, Reference
 from openpyxl.chart.trendline import Trendline
 from openpyxl.chart.label import DataLabelList
+from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
 import sys
 
 currentDirectory = os.path.dirname(os.path.realpath(__file__))
@@ -209,25 +210,46 @@ if __name__ == '__main__':
         ws['F1'].value = "In Progress"
         for i, j in zip(range(3), range(ord('F'), ord('H') + 1)):
             ws[chr(j) + row] = statusList[i]
-        #### seting New section ###
+        # setting New section #
         ws.merge_cells('I1:K1')
         ws['I1'].value = "Closed"
         for i, j in zip(range(3), range(ord('I'), ord('K') + 1)):
             ws[chr(j) + row] = statusList[i]
-        #### seting Total section ###
+        # setting Total section #
         ws.merge_cells('L1:N1')
         ws['L1'].value = "Total"
         for i in range(ord('L'), ord('N') + 1):
             ws[chr(i) + row] = finalStatusList.pop(0)
 
-        currentSheetcols = status_arr
+        sheet_cols = status_arr
         for index in (1, 3, 5):
-            currentSheetcols.insert(index, 'diff')
-        row = ['Week#', 'Run Date'] + currentSheetcols
+            sheet_cols.insert(index, 'diff')
+        row = ['Week#', 'Run Date'] + sheet_cols
 
         for project in ertProjects:
             workSheet = workBook.create_sheet(project)
             workSheet.append(row)
+
+        header_font = Font(name='Calibri', size=12, bold=True)
+        side = Side(border_style='thin', color="FF000000")
+        color_fill = PatternFill("solid", fgColor="87CEEB")
+        wrap_alignment = Alignment(wrap_text=True, vertical="top", horizontal='center')
+        for sheet in workBook.get_sheet_names():
+            ws = workBook[sheet]
+            for row in ws.iter_rows():
+                for cell in row:
+                    border = Border(
+                        left=cell.border.left,
+                        right=cell.border.right,
+                        top=cell.border.top,
+                        bottom=cell.border.bottom
+                    )
+                    border.left = border.right = border.top = border.bottom = side
+                    cell.alignment = wrap_alignment
+                    cell.border = border
+                    cell.font = header_font
+                    cell.fill = color_fill
+
         workBook.save(filename=excelFileName)
 
     workBook = load_workbook(excelFileName)
