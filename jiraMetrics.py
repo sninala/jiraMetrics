@@ -82,6 +82,7 @@ def getResponseFromJira(project, status, query):
     else:
         raise Exception("Unable get response from Jira")
 
+
 def createNewWeeklyMetricsSheet(workBook, workSheet):
     print "In Creating"
     metrics = collections.OrderedDict()
@@ -201,7 +202,8 @@ if __name__ == '__main__':
         ws['L1'].value = "Total"
         for i in range(ord('L'), ord('N') + 1):
             ws[chr(i) + row] = finalStatusList.pop(0)
-
+        freeze_cell = ws['A2']
+        ws.freeze_panes = freeze_cell
         sheet_cols = status_arr
         for index in (1, 3, 5):
             sheet_cols.insert(index, 'diff')
@@ -210,6 +212,8 @@ if __name__ == '__main__':
         for project in ertProjects:
             workSheet = workBook.create_sheet(project)
             workSheet.append(row)
+            cell = workSheet['A1']
+            workSheet.freeze_panes = cell
 
         header_font = Font(name='Calibri', size=12, bold=True)
         side = Side(border_style='thin', color="FF000000")
