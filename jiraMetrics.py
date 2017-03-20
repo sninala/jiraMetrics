@@ -84,7 +84,6 @@ def getResponseFromJira(project, status, query):
 
 
 def createNewWeeklyMetricsSheet(workBook, workSheet):
-    print "In Creating"
     metrics = collections.OrderedDict()
     for project in ertProjects:
         ws = workBook[project]
@@ -145,7 +144,7 @@ def createWeeklyTotalBarChart():
         workSheet.sheet_properties.tabColor = "1072BA"
         createNewWeeklyMetricsSheet(workBook, workSheet)
     else:
-        print " Updating Sheer {}".format(chartName)
+        print "Updating {} Sheet".format(chartName)
         workSheet = workBook.get_sheet_by_name(chartName)
         updateWeeklyMetricsSheet(workBook, workSheet)
     chart1 = BarChart()
