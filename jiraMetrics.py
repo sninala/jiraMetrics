@@ -7,6 +7,9 @@ import datetime
 import requests
 import urllib
 import collections
+import io, json
+import pandas
+import string
 from ConfigParser import SafeConfigParser
 from requests.auth import HTTPBasicAuth
 from openpyxl import Workbook
@@ -14,13 +17,11 @@ from openpyxl import load_workbook
 from openpyxl.chart import BarChart, Series, Reference
 from openpyxl.chart.trendline import Trendline
 from openpyxl.chart.label import DataLabelList
-import io, json
-import pandas
 import sys
 
 currentDirectory = os.path.dirname(os.path.realpath(__file__))
 output_dir = os.path.join(currentDirectory, 'output')
-output_file = os.path.join(output_dir, 'Jira_Metrics.xlsx')
+excelFileName = os.path.join(output_dir, 'Jira_Metrics.xlsx')
 config_file = os.path.join(currentDirectory, 'config','jiraMetrics.ini')
 if os.path.exists(config_file):
     config = SafeConfigParser()
@@ -34,7 +35,6 @@ password = config.get('BUG_TRACKER', 'password')
 
 jsonOutputDir = os.path.join(currentDirectory, 'json')
 excelOutputDir = os.path.join(currentDirectory, 'excel')
-excelFileName = os.path.join(currentDirectory, 'ERT-Jira-count.xlsx')
 
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
@@ -52,7 +52,13 @@ if os.path.exists(excelFileName):
 
 projects = [project.strip() for project in config.get('BUG_TRACKER', 'projects').split(",")]
 custom_projects = [project.strip() for project in config.get('BUG_TRACKER', 'custom_projects').split(",")]
-ertPojects = projects + custom_projects
+ertProjects = projects + custom_projects
+status_arr = []
+jql_items = config.items('JQL')
+for status, query in jql_items:
+    status_arr.append(status)
+status_arr = [string.capwords(status) for status in status_arr]
+
 
 jqlQuries = [
     ('New',
@@ -63,7 +69,6 @@ jqlQuries = [
      'project in (__PROJECTNAME__) AND status in (CLOSED, RESOLVED) AND createdDate > 2015-01-01 AND createdDate <= __CURRENTDATE__')
 ]
 jqlQuries = collections.OrderedDict(jqlQuries)
-# excelFileName = r'D:\Polarian\ERT-Jira-count4.xlsx'
 currentDate = datetime.date.today()
 currentWeek = currentDate.strftime("%W-%Y")
 currentDate_YYYY_MM_DD = currentDate.strftime("%Y-%m-%d")
@@ -92,7 +97,7 @@ def getResponseFromJira(project, status, query):
 def createNewWeeklyMetricsSheet(workBook, workSheet):
     print "In Creating"
     metrics = collections.OrderedDict()
-    for project in ertPojects:
+    for project in ertProjects:
         ws = workBook[project]
         for row in ws.iter_rows():
             rowList = []
@@ -113,7 +118,7 @@ def createNewWeeklyMetricsSheet(workBook, workSheet):
     projectrows = [('Date', 'Total')]
     for rundate in rundates:
         total = 0
-        for project in ertPojects:
+        for project in ertProjects:
             (New, diff1, InProgess, diff2, closed, diff3) = metrics[project + '#' + rundate].split('#')
             projectTotal = int(New) + int(InProgess) + int(closed)
             total = total + projectTotal
@@ -141,7 +146,7 @@ def createNewWeeklyMetricsSheet(workBook, workSheet):
 
 def updateWeeklyMetricsSheet(workBook, workSheet):
     metrics = collections.OrderedDict()
-    for project in ertPojects:
+    for project in ertProjects:
         ws = workBook[project]
         row = ws.max_row
         latest_row = []
@@ -150,7 +155,7 @@ def updateWeeklyMetricsSheet(workBook, workSheet):
         metrics[project + '#' + latest_row[1]] = '#'.join(str(v) for v in latest_row[2:])
     project, rundate = metrics.keys()[0].split('#')
     total = 0
-    for project in ertPojects:
+    for project in ertProjects:
         (New, diff1, InProgess, diff2, closed, diff3) = metrics[project + '#' + rundate].split('#')
         projectTotal = int(New) + int(InProgess) + int(closed)
         total = total + projectTotal
@@ -227,19 +232,19 @@ if __name__ == '__main__':
         for i in range(ord('L'), ord('N') + 1):
             ws[chr(i) + row] = finalStatusList.pop(0)
 
-        currentSheetcols = jqlQuries.keys()
+        currentSheetcols = status_arr
         for index in (1, 3, 5):
             currentSheetcols.insert(index, 'diff')
         row = ['Week#', 'Run Date'] + currentSheetcols
 
-        for project in ertPojects:
+        for project in ertProjects:
             workSheet = workBook.create_sheet(project)
             workSheet.append(row)
         workBook.save(filename=excelFileName)
 
     workBook = load_workbook(excelFileName)
     #### populating data for project Sheets ###
-    projectWorkSheet = workBook[ertPojects[0]]
+    projectWorkSheet = workBook[ertProjects[0]]
     lastRunWeek = projectWorkSheet.cell(row=projectWorkSheet.max_row, column=projectWorkSheet.min_column).value
     lastRunDate = projectWorkSheet.cell(row=projectWorkSheet.max_row, column=projectWorkSheet.min_column + 1).value
     if projectWorkSheet.max_row > 1:
@@ -250,7 +255,7 @@ if __name__ == '__main__':
     rollUpSheet = workBook['Rollup']
     rollupSheetRows = []
     rollupIndex = 1
-    for project in ertPojects:
+    for project in ertProjects:
         print "working on Metrics for {} project ".format(project)
         workSheet = workBook[project]
         lastWeekResults = dict()
