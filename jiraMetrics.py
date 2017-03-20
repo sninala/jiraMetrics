@@ -47,8 +47,7 @@ if os.path.exists(excelFileName):
     try:
         os.rename(excelFileName, excelFileName)
     except OSError as e:
-        print excelFileName + 'already in use. Please close it'
-        sys.exit()
+        raise OSError(excelFileName + ' already in use. Please close it')
 
 projects = [project.strip() for project in config.get('BUG_TRACKER', 'projects').split(",")]
 custom_projects = [project.strip() for project in config.get('BUG_TRACKER', 'custom_projects').split(",")]
@@ -58,17 +57,24 @@ jql_items = config.items('JQL')
 for status, query in jql_items:
     status_arr.append(status)
 status_arr = [string.capwords(status) for status in status_arr]
-
+items = []
+for project in projects:
+    for status, query in jql_items:
+        key = project + "##" + status
+        items.append((key, query))
+for project in custom_projects:
+    for status, query in config.items(project+'_JQL'):
+        key = project + "##" + status
+        items.append((key, query))
+jqlQuries  = collections.OrderedDict(items)
 
 jqlQuries = [
-    ('New',
-     'project in (__PROJECTNAME__) AND status in (New, Reopened) AND createdDate > 2015-01-01 AND createdDate<= __CURRENTDATE__'),
-    ('In Progress',
-     'project in (__PROJECTNAME__) AND status in ("in Integration Test", "in Progress", "in Review", "in Testing QA", "in Testing UAT", "in TFS", "in validation", "in Verification", "Work Complete") AND createdDate > 2015-01-01 AND createdDate <= __CURRENTDATE__'),
-    ('Closed',
-     'project in (__PROJECTNAME__) AND status in (CLOSED, RESOLVED) AND createdDate > 2015-01-01 AND createdDate <= __CURRENTDATE__')
+    ('New', 'project in (__PROJECTNAME__) AND status in (New, Reopened) AND createdDate > 2015-01-01 AND createdDate<= __CURRENTDATE__'),
+    ('In Progress', 'project in (__PROJECTNAME__) AND status in ("in Integration Test", "in Progress", "in Review", "in Testing QA", "in Testing UAT", "in TFS", "in validation", "in Verification", "Work Complete") AND createdDate > 2015-01-01 AND createdDate <= __CURRENTDATE__'),
+    ('Closed', 'project in (__PROJECTNAME__) AND status in (CLOSED, RESOLVED) AND createdDate > 2015-01-01 AND createdDate <= __CURRENTDATE__')
 ]
 jqlQuries = collections.OrderedDict(jqlQuries)
+
 currentDate = datetime.date.today()
 currentWeek = currentDate.strftime("%W-%Y")
 currentDate_YYYY_MM_DD = currentDate.strftime("%Y-%m-%d")
@@ -126,22 +132,6 @@ def createNewWeeklyMetricsSheet(workBook, workSheet):
     rows = projectrows
     for row in rows:
         workSheet.append(row)
-    chart1 = BarChart()
-    chart1.style = 10
-    chart1.title = "Weekly Total - All Tickets"
-    chart1.y_axis.title = 'Total'
-    chart1.x_axis.title = 'Run Date'
-    data = Reference(workSheet, min_col=2, min_row=1, max_row=len(rows), max_col=len(rows[0]))
-    cats = Reference(workSheet, min_col=1, min_row=2, max_row=len(rows))
-    chart1.add_data(data, titles_from_data=True)
-    chart1.set_categories(cats)
-    chart1.shape = 4
-    chart1.series[0].trendline = Trendline()
-    chart1.series[0].trendline.trendlineType = 'linear'
-    chart1.dataLabels = DataLabelList()
-    chart1.dataLabels.showVal = True
-    workSheet.add_chart(chart1, "H2")
-    workBook.save(filename=excelFileName)
 
 
 def updateWeeklyMetricsSheet(workBook, workSheet):
@@ -162,24 +152,6 @@ def updateWeeklyMetricsSheet(workBook, workSheet):
     newRow = (rundate, total)
     workSheet.append(newRow)
 
-    chart1 = BarChart()
-    chart1.style = 10
-    chart1.title = "Weekly Total - All Tickets"
-    chart1.y_axis.title = 'Total'
-    chart1.x_axis.title = 'Run Date'
-    data = Reference(workSheet, min_col=2, min_row=1, max_row=workSheet.max_row, max_col=len(newRow))
-    cats = Reference(workSheet, min_col=1, min_row=2, max_row=workSheet.max_row)
-    chart1.add_data(data, titles_from_data=True)
-    chart1.set_categories(cats)
-    chart1.shape = 4
-    chart1.series[0].trendline = Trendline()
-    chart1.series[0].trendline.trendlineType = 'linear'
-    chart1.dataLabels = DataLabelList()
-    chart1.dataLabels.showVal = True
-    workSheet.add_chart(chart1, "H2")
-    workBook.save(filename=excelFileName)
-
-
 def createWeeklyTotalBarChart():
     chartName = "WeeklyTotals"
     workBook = load_workbook(excelFileName)
@@ -193,6 +165,22 @@ def createWeeklyTotalBarChart():
         print " Updating Sheer {}".format(chartName)
         workSheet = workBook.get_sheet_by_name(chartName)
         updateWeeklyMetricsSheet(workBook, workSheet)
+    chart1 = BarChart()
+    chart1.style = 10
+    chart1.title = "Weekly Total - All Tickets"
+    chart1.y_axis.title = 'Total'
+    chart1.x_axis.title = 'Run Date'
+    data = Reference(workSheet, min_col=2, min_row=1, max_row=workSheet.max_row, max_col=workSheet.max_column)
+    cats = Reference(workSheet, min_col=1, min_row=2, max_row=workSheet.max_row)
+    chart1.add_data(data, titles_from_data=True)
+    chart1.set_categories(cats)
+    chart1.shape = 4
+    chart1.series[0].trendline = Trendline()
+    chart1.series[0].trendline.trendlineType = 'linear'
+    chart1.dataLabels = DataLabelList()
+    chart1.dataLabels.showVal = True
+    workSheet.add_chart(chart1, "H2")
+    workBook.save(filename=excelFileName)
 
 
 if __name__ == '__main__':
@@ -247,11 +235,13 @@ if __name__ == '__main__':
     projectWorkSheet = workBook[ertProjects[0]]
     lastRunWeek = projectWorkSheet.cell(row=projectWorkSheet.max_row, column=projectWorkSheet.min_column).value
     lastRunDate = projectWorkSheet.cell(row=projectWorkSheet.max_row, column=projectWorkSheet.min_column + 1).value
+    '''
     if projectWorkSheet.max_row > 1:
         # if((lastRunWeek == currentWeek) or (lastRunDate==currentDate)):
         if ((lastRunDate == currentDate)):
             print "Program already executed for {} week".format(currentWeek)
             sys.exit(0)
+    '''
     rollUpSheet = workBook['Rollup']
     rollupSheetRows = []
     rollupIndex = 1
@@ -270,40 +260,25 @@ if __name__ == '__main__':
             row.append(queryCount)
             print status, queryCount
             currentWeekResults[project + '-' + status] = queryCount
-            if status == 'New':
-                if workSheet.max_row == 1:
-                    lastRunValue = 0
-                    diff = 0
-                else:
-                    lastRunValue = workSheet['C' + str(workSheet.max_row)].value
-                    diff = "=$C${0}-$C${1}".format(workSheet.max_row + 1, workSheet.max_row)
-                row.append(diff)
-                lastWeekResults[project + '-' + status] = lastRunValue
+            if workSheet.max_row == 1:
+                lastRunValue = 0
+                diff = 0
+            elif status == 'New':
+                lastRunValue = workSheet['C' + str(workSheet.max_row)].value
+                diff = "=$C${0}-$C${1}".format(workSheet.max_row + 1, workSheet.max_row)
             elif status == 'In Progress':
-                if workSheet.max_row == 1:
-                    diff = 0
-                else:
-                    lastRunValue = workSheet['E' + str(workSheet.max_row)].value
-                    diff = "=$E${0}-$E${1}".format(workSheet.max_row + 1, workSheet.max_row)
-                    # diff = queryCount - lastRunValue
-                row.append(diff)
-                lastWeekResults[project + '-' + status] = lastRunValue
+                lastRunValue = workSheet['E' + str(workSheet.max_row)].value
+                diff = "=$E${0}-$E${1}".format(workSheet.max_row + 1, workSheet.max_row)
             elif status == 'Closed':
-                if workSheet.max_row == 1:
-                    diff = 0
-                else:
-                    # diff = "=workSheet['G'+str(workSheet.max_row+1)].value - workSheet['G'+str(workSheet.max_row)].value"
-                    lastRunValue = workSheet['G' + str(workSheet.max_row)].value
-                    diff = "=$G${0}-$G${1}".format(workSheet.max_row + 1, workSheet.max_row)
-                    # diff = queryCount - lastRunValue
-                row.append(diff)
-                lastWeekResults[project + '-' + status] = lastRunValue
-            else:
-                pass
-
+                lastRunValue = workSheet['G' + str(workSheet.max_row)].value
+                diff = "=$G${0}-$G${1}".format(workSheet.max_row + 1, workSheet.max_row)
+            row.append(diff)
+            lastWeekResults[project + '-' + status] = lastRunValue
         row = [currentWeek, currentDate] + row
         workSheet.append(row)
         if rollUpSheet.max_row == 2:
+            currentWeekTotal = currentWeekResults[project + '-New'] +\
+                currentWeekResults[project + '-In Progress'] + currentWeekResults[project + '-Closed']
             rollupSheetRows.append([project, currentDate,
                                     currentWeekResults[project + '-New'],
                                     lastWeekResults[project + '-New'],
@@ -313,7 +288,9 @@ if __name__ == '__main__':
                                     0,
                                     currentWeekResults[project + '-Closed'],
                                     lastWeekResults[project + '-Closed'],
-                                    0, 0, 0, 0
+                                    0,
+                                    "=$C${0}+$F${0}+$I${0}".format(rollUpSheet.max_row + rollupIndex),
+                                    0, 0
                                     ])
         else:
             rollupSheetRows.append([project, currentDate,
