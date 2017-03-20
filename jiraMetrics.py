@@ -50,31 +50,31 @@ if os.path.exists(excelFileName):
     except OSError as e:
         raise OSError(excelFileName + ' already in use. Please close it')
 
-projects = [project.strip() for project in config.get('BUG_TRACKER', 'projects').split(",")]
-custom_projects = [project.strip() for project in config.get('BUG_TRACKER', 'custom_projects').split(",")]
-ertProjects = projects + custom_projects
+ertProjects = [project.strip() for project in config.get('BUG_TRACKER', 'projects').split(",")]
+
 status_arr = []
 jql_items = config.items('JQL')
 for status, query in jql_items:
     status_arr.append(status)
 status_arr = [string.capwords(status) for status in status_arr]
 items = []
-for project in projects:
-    for status, query in jql_items:
-        key = project + "##" + status
-        items.append((key, query))
-for project in custom_projects:
-    for status, query in config.items(project+'_JQL'):
-        key = project + "##" + status
-        items.append((key, query))
-jqlQuries  = collections.OrderedDict(items)
+for project in ertProjects:
+    if config.has_section(project+'_JQL'):
+        for status, query in config.items(project+'_JQL'):
+            key = project + "##" + status
+            items.append((key, query))
+    else:
+        for status, query in jql_items:
+            key = project + "##" + status
+            items.append((key, query))
+jqlQueries = collections.OrderedDict(items)
 
-jqlQuries = [
+jqlQueries = [
     ('New', 'project in (__PROJECTNAME__) AND status in (New, Reopened) AND createdDate > 2015-01-01 AND createdDate<= __CURRENTDATE__'),
     ('In Progress', 'project in (__PROJECTNAME__) AND status in ("in Integration Test", "in Progress", "in Review", "in Testing QA", "in Testing UAT", "in TFS", "in validation", "in Verification", "Work Complete") AND createdDate > 2015-01-01 AND createdDate <= __CURRENTDATE__'),
     ('Closed', 'project in (__PROJECTNAME__) AND status in (CLOSED, RESOLVED) AND createdDate > 2015-01-01 AND createdDate <= __CURRENTDATE__')
 ]
-jqlQuries = collections.OrderedDict(jqlQuries)
+jqlQueries = collections.OrderedDict(jqlQueries)
 
 currentDate = datetime.date.today()
 currentWeek = currentDate.strftime("%W-%Y")
@@ -274,7 +274,7 @@ if __name__ == '__main__':
         currentWeekResults = dict()
         row = []
         projectRowIndex = 1
-        for status, query in jqlQuries.iteritems():
+        for status, query in jqlQueries.iteritems():
             query = query.replace('__PROJECTNAME__', project)
             query = query.replace('__CURRENTDATE__', currentDate_YYYY_MM_DD)
             queryCount = getResponseFromJira(project, status, query)
