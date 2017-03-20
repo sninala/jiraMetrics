@@ -57,30 +57,11 @@ jql_items = config.items('JQL')
 for status, query in jql_items:
     status_arr.append(status)
 status_arr = [string.capwords(status) for status in status_arr]
-items = []
-for project in ertProjects:
-    if config.has_section(project+'_JQL'):
-        for status, query in config.items(project+'_JQL'):
-            key = project + "##" + status
-            items.append((key, query))
-    else:
-        for status, query in jql_items:
-            key = project + "##" + status
-            items.append((key, query))
-jqlQueries = collections.OrderedDict(items)
-
-jqlQueries = [
-    ('New', 'project in (__PROJECTNAME__) AND status in (New, Reopened) AND createdDate > 2015-01-01 AND createdDate<= __CURRENTDATE__'),
-    ('In Progress', 'project in (__PROJECTNAME__) AND status in ("in Integration Test", "in Progress", "in Review", "in Testing QA", "in Testing UAT", "in TFS", "in validation", "in Verification", "Work Complete") AND createdDate > 2015-01-01 AND createdDate <= __CURRENTDATE__'),
-    ('Closed', 'project in (__PROJECTNAME__) AND status in (CLOSED, RESOLVED) AND createdDate > 2015-01-01 AND createdDate <= __CURRENTDATE__')
-]
-jqlQueries = collections.OrderedDict(jqlQueries)
 
 currentDate = datetime.date.today()
 currentWeek = currentDate.strftime("%W-%Y")
 currentDate_YYYY_MM_DD = currentDate.strftime("%Y-%m-%d")
 currentDate = currentDate.strftime("%m/%d/%Y")
-
 
 def writeResponseToFileSystem(project, status, response):
     jsonFile = os.path.join(jsonOutputDir, project + '-' + status + '-' + currentDate_YYYY_MM_DD + '.json')
@@ -267,6 +248,8 @@ if __name__ == '__main__':
     rollUpSheet = workBook['Rollup']
     rollupSheetRows = []
     rollupIndex = 1
+    lastWeekResults = dict()
+    currentWeekResults = dict()
     for project in ertProjects:
         print "working on Metrics for {} project ".format(project)
         workSheet = workBook[project]
@@ -274,7 +257,12 @@ if __name__ == '__main__':
         currentWeekResults = dict()
         row = []
         projectRowIndex = 1
+        if config.has_section(project + '_JQL'):
+            jqlQueries = collections.OrderedDict(config.items(project + '_JQL'))
+        else:
+            jqlQueries = collections.OrderedDict(jql_items)
         for status, query in jqlQueries.iteritems():
+            status = string.capwords(status)
             query = query.replace('__PROJECTNAME__', project)
             query = query.replace('__CURRENTDATE__', currentDate_YYYY_MM_DD)
             queryCount = getResponseFromJira(project, status, query)
