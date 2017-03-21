@@ -130,8 +130,14 @@ def updateWeeklyMetricsSheet(workBook, workSheet):
     for project in ertProjects:
         (New, diff1, InProgess, diff2, closed, diff3) = metrics[project + '#' + rundate].split('#')
         projectTotal = int(New) + int(InProgess) + int(closed)
-        total = total + projectTotal
+        total = (total + projectTotal)
     newRow = (rundate, total)
+    for row in workSheet.iter_rows():
+        (rundate_cell, total_amount_cell) = (row[0], row[1])
+        if rundate_cell.value == currentDate:
+            print "updating the data for {}".format(currentDate)
+            total_amount_cell.value = newRow[1]
+            return
     workSheet.append(newRow)
 
 def createWeeklyTotalBarChart():
@@ -241,14 +247,18 @@ if __name__ == '__main__':
     projectWorkSheet = workBook[ertProjects[0]]
     lastRunWeek = projectWorkSheet.cell(row=projectWorkSheet.max_row, column=projectWorkSheet.min_column).value
     lastRunDate = projectWorkSheet.cell(row=projectWorkSheet.max_row, column=projectWorkSheet.min_column + 1).value
+    script_executed_for_current_week = (projectWorkSheet.max_row > 1 and (lastRunDate == currentDate))
+    print script_executed_for_current_week
     '''
-    if projectWorkSheet.max_row > 1:
-        # if((lastRunWeek == currentWeek) or (lastRunDate==currentDate)):
-        if ((lastRunDate == currentDate)):
-            print "Program already executed for {} week".format(currentWeek)
-            sys.exit(0)
+    script_executed_for_current_week = (
+        projectWorkSheet.max_row > 1 and (lastRunWeek == currentWeek) or (lastRunDate==currentDate)
+    )
     '''
     rollUpSheet = workBook['Rollup']
+    rollUpSheet_max_row = rollUpSheet.max_row
+    if script_executed_for_current_week:
+        rollUpSheet_max_row = (rollUpSheet_max_row - len(ertProjects))
+
     rollupSheetRows = []
     rollupIndex = 1
     lastWeekResults = dict()
@@ -273,23 +283,33 @@ if __name__ == '__main__':
             row.append(queryCount)
             print status, queryCount
             currentWeekResults[project + '-' + status] = queryCount
-            if workSheet.max_row == 1:
+            project_sheet_max_row = workSheet.max_row
+            if script_executed_for_current_week:
+                project_sheet_max_row = (project_sheet_max_row - 1)
+
+            if project_sheet_max_row == 1:
                 lastRunValue = 0
                 diff = 0
             elif status == 'New':
-                lastRunValue = workSheet['C' + str(workSheet.max_row)].value
-                diff = "=$C${0}-$C${1}".format(workSheet.max_row + 1, workSheet.max_row)
+                lastRunValue = workSheet['C' + str(project_sheet_max_row)].value
+                diff = "=$C${0}-$C${1}".format(project_sheet_max_row + 1, project_sheet_max_row)
             elif status == 'In Progress':
-                lastRunValue = workSheet['E' + str(workSheet.max_row)].value
-                diff = "=$E${0}-$E${1}".format(workSheet.max_row + 1, workSheet.max_row)
+                lastRunValue = workSheet['E' + str(project_sheet_max_row)].value
+                diff = "=$E${0}-$E${1}".format(project_sheet_max_row + 1, project_sheet_max_row)
             elif status == 'Closed':
-                lastRunValue = workSheet['G' + str(workSheet.max_row)].value
-                diff = "=$G${0}-$G${1}".format(workSheet.max_row + 1, workSheet.max_row)
+                lastRunValue = workSheet['G' + str(project_sheet_max_row)].value
+                diff = "=$G${0}-$G${1}".format(project_sheet_max_row + 1, project_sheet_max_row)
             row.append(diff)
             lastWeekResults[project + '-' + status] = lastRunValue
         row = [currentWeek, currentDate] + row
-        workSheet.append(row)
-        if rollUpSheet.max_row == 2:
+        if script_executed_for_current_week:
+            index = 0
+            for col in range(workSheet.min_column, workSheet.max_column + 1):
+                workSheet.cell(row=project_sheet_max_row + 1, column=col, value=row[index])
+                index += 1
+        else:
+            workSheet.append(row)
+        if rollUpSheet_max_row == 2:
             currentWeekTotal = currentWeekResults[project + '-New'] +\
                 currentWeekResults[project + '-In Progress'] + currentWeekResults[project + '-Closed']
             rollupSheetRows.append([project, currentDate,
@@ -302,29 +322,35 @@ if __name__ == '__main__':
                                     currentWeekResults[project + '-Closed'],
                                     lastWeekResults[project + '-Closed'],
                                     0,
-                                    "=$C${0}+$F${0}+$I${0}".format(rollUpSheet.max_row + rollupIndex),
+                                    "=$C${0}+$F${0}+$I${0}".format(rollUpSheet_max_row + rollupIndex),
                                     0, 0
                                     ])
         else:
             rollupSheetRows.append([project, currentDate,
                                     currentWeekResults[project + '-New'],
                                     lastWeekResults[project + '-New'],
-                                    "=$C${0}-$D${0}".format(rollUpSheet.max_row + rollupIndex),
+                                    "=$C${0}-$D${0}".format(rollUpSheet_max_row + rollupIndex),
                                     currentWeekResults[project + '-In Progress'],
                                     lastWeekResults[project + '-In Progress'],
-                                    "=$F${0}-$G${0}".format(rollUpSheet.max_row + rollupIndex),
+                                    "=$F${0}-$G${0}".format(rollUpSheet_max_row + rollupIndex),
                                     currentWeekResults[project + '-Closed'],
                                     lastWeekResults[project + '-Closed'],
-                                    "=$I${0}-$J${0}".format(rollUpSheet.max_row + rollupIndex),
-                                    "=$C${0}+$F${0}+$I${0}".format(rollUpSheet.max_row + rollupIndex),
-                                    "=$D${0}+$G${0}+$J${0}".format(rollUpSheet.max_row + rollupIndex),
-                                    "=$L${0}-$M${0}".format(rollUpSheet.max_row + rollupIndex),
+                                    "=$I${0}-$J${0}".format(rollUpSheet_max_row + rollupIndex),
+                                    "=$C${0}+$F${0}+$I${0}".format(rollUpSheet_max_row + rollupIndex),
+                                    "=$D${0}+$G${0}+$J${0}".format(rollUpSheet_max_row + rollupIndex),
+                                    "=$L${0}-$M${0}".format(rollUpSheet_max_row + rollupIndex),
                                     ])
         rollupIndex += 1
     #### populate data for Rollup Sheet ###
-
-    for row in rollupSheetRows:
-        rollUpSheet.append(row)
+    if script_executed_for_current_week:
+        index = 1
+        for row in rollupSheetRows:
+            for col in range(rollUpSheet.min_column, rollUpSheet.max_column + 1):
+                rollUpSheet.cell(row=rollUpSheet_max_row + index, column=col, value=rollupSheetRows[index-1][col-1])
+            index += 1
+    else:
+        for row in rollupSheetRows:
+            rollUpSheet.append(row)
     workBook.save(filename=excelFileName)
     createWeeklyTotalBarChart()
     print "Task Completed"
