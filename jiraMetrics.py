@@ -10,6 +10,7 @@ import collections
 import io, json
 import pandas
 import string
+from dateutil.parser import parse
 from ConfigParser import SafeConfigParser
 from requests.auth import HTTPBasicAuth
 from openpyxl import Workbook
@@ -69,6 +70,91 @@ def writeResponseToFileSystem(project, status, response):
         f.write(json.dumps(response, ensure_ascii=False))
     excelFile = os.path.join(excelOutputDir, project + '-' + status + '-' + currentDate_YYYY_MM_DD + '.xlsx')
     pandas.read_json(jsonFile).to_excel(excelFile)
+
+def is_date(string):
+    try:
+        parse(string)
+        return True
+    except ValueError:
+        return False
+
+def extract_data_from_old_file_and_insert_into_new_file():
+    oldWorkBookFileName = os.path.join(currentDirectory, 'From 2015-current - Combined 2017-02-23.xlsm')
+    ertProjects = ['Expert', 'ePRO', 'RCVS', 'SPOR', 'Mport', 'CRQST']
+    oldWorkBook = load_workbook(oldWorkBookFileName, data_only=True)
+    rollUpSheet = oldWorkBook['Rollup']
+    oldData = collections.OrderedDict()
+    RollupData = collections.OrderedDict()
+
+    for row in rollUpSheet.iter_rows():
+        if row[0].row == 1:
+            continue
+        oldData[row[0].value + '##' + str(row[1].value)] = "##".join(
+            [str(row[2].value), str(row[5].value), str(row[8].value)])
+        data = []
+        for i in range(2, 17):
+            data.append(row[i].value)
+        data = [str(x) for x in data]
+        RollupData[row[0].value + '##' + str(row[1].value)] = "##".join(data)
+    dates = set()
+    keys = oldData.keys()
+    for key in keys:
+        project, date = key.split("##")
+        if is_date(date):
+            dates.add(date)
+    dates = sorted(dates, key=lambda x: datetime.datetime.strptime(x, '%Y-%m-%d %H:%M:%S'))
+    latestWorkBook = load_workbook(excelFileName)
+    ### populate the project specific sheets
+    for project in ertProjects:
+        project1 = project
+        if project1 == 'Expert':
+            project1 = 'EXPRT'
+        elif project1 == 'ePRO':
+            project1 = 'EPR'
+        ws = latestWorkBook[project1.upper()]
+        for date in dates:
+            key = project + '##' + date
+            if key in oldData.keys():
+                (New, InProgress, Closed) = oldData[key].split('##')
+                project_sheet_max_row = ws.max_row
+                date1 = datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S').strftime("%m/%d/%Y")
+                weekOfYear = datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S').strftime("%W-%Y")
+                if project_sheet_max_row == 1:
+                    diff1 = diff2 = diff3 = 0
+                else:
+                    diff1 = "=C{0}-C{1}".format(project_sheet_max_row + 1, project_sheet_max_row)
+                    diff2 = "=E{0}-E{1}".format(project_sheet_max_row + 1, project_sheet_max_row)
+                    diff3 = "=G{0}-G{1}".format(project_sheet_max_row + 1, project_sheet_max_row)
+                row = [weekOfYear, date1, int(New), diff1, int(InProgress), diff2, int(Closed), diff3]
+                ws.append(row)
+
+    ##populate the Rollup
+    latestRollup = latestWorkBook['Rollup']
+    for date in dates:
+        for project in ertProjects:
+            key = project + '##' + date
+            project1 = project
+            if project1 == 'Expert':
+                project1 = 'EXPRT'
+            elif project1 == 'ePRO':
+                project1 = 'EPR'
+            if key in RollupData.keys():
+                date1 = datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S').strftime("%m/%d/%Y")
+                values = RollupData[key].split('##')
+                int_values = []
+                for value in values:
+                    if value == 'none':
+                        value = 0;
+                    try:
+                        value = int(value)
+                    except Exception:
+                        value = str(value)
+                    int_values.append(value)
+                row = [project1, date1] + int_values
+                latestRollup.append(row)
+
+    latestWorkBook.save(filename=excelFileName)
+
 
 
 def getResponseFromJira(project, status, query):
@@ -244,8 +330,8 @@ if __name__ == '__main__':
                     cell.border = border
                     cell.font = header_font
                     cell.fill = color_fill
-
         workBook.save(filename=excelFileName)
+        extract_data_from_old_file_and_insert_into_new_file()
 
     workBook = load_workbook(excelFileName)
     #### populating data for project Sheets ###
@@ -342,10 +428,10 @@ if __name__ == '__main__':
                                     "=F{0}-G{0}".format(rollUpSheet_max_row + rollupIndex),
                                     currentWeekResults[project + '-Closed'],
                                     lastWeekResults[project + '-Closed'],
+                                    "=I{0}-J{0}".format(rollUpSheet_max_row + rollupIndex),
                                     "=C{0}+F{0}".format(rollUpSheet_max_row + rollupIndex),
                                     "=D{0}+G{0}".format(rollUpSheet_max_row + rollupIndex),
                                     "=L{0}-M{0}".format(rollUpSheet_max_row + rollupIndex),
-                                    "=I{0}-J{0}".format(rollUpSheet_max_row + rollupIndex),
                                     "=I{0}+L{0}".format(rollUpSheet_max_row + rollupIndex),
                                     "=J{0}+M{0}".format(rollUpSheet_max_row + rollupIndex),
                                     "=O{0}-P{0}".format(rollUpSheet_max_row + rollupIndex),
