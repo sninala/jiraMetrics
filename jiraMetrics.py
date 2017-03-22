@@ -192,20 +192,25 @@ if __name__ == '__main__':
 
         for i, j in zip(range(3), range(ord('C'), ord('E') + 1)):
             ws[chr(j) + row] = statusList[i]
-        #### seting New section ###
+        #### seting In Progress section ###
         ws.merge_cells('F1:H1')
         ws['F1'].value = "In Progress"
         for i, j in zip(range(3), range(ord('F'), ord('H') + 1)):
             ws[chr(j) + row] = statusList[i]
-        # setting New section #
+        # setting Closed section #
         ws.merge_cells('I1:K1')
         ws['I1'].value = "Closed"
         for i, j in zip(range(3), range(ord('I'), ord('K') + 1)):
             ws[chr(j) + row] = statusList[i]
-        # setting Total section #
+        # setting New & In progress section #
         ws.merge_cells('L1:N1')
-        ws['L1'].value = "Total"
-        for i in range(ord('L'), ord('N') + 1):
+        ws['L1'].value = "New & In Progress"
+        for i, j in zip(range(3), range(ord('L'), ord('N') + 1)):
+            ws[chr(j) + row] = statusList[i]
+        # setting Total section #
+        ws.merge_cells('O1:Q1')
+        ws['O1'].value = "Total"
+        for i in range(ord('O'), ord('Q') + 1):
             ws[chr(i) + row] = finalStatusList.pop(0)
         freeze_cell = ws['A2']
         ws.freeze_panes = freeze_cell
@@ -292,13 +297,13 @@ if __name__ == '__main__':
                 diff = 0
             elif status == 'New':
                 lastRunValue = workSheet['C' + str(project_sheet_max_row)].value
-                diff = "=$C${0}-$C${1}".format(project_sheet_max_row + 1, project_sheet_max_row)
+                diff = "=C{0}-C{1}".format(project_sheet_max_row + 1, project_sheet_max_row)
             elif status == 'In Progress':
                 lastRunValue = workSheet['E' + str(project_sheet_max_row)].value
-                diff = "=$E${0}-$E${1}".format(project_sheet_max_row + 1, project_sheet_max_row)
+                diff = "=E{0}-E{1}".format(project_sheet_max_row + 1, project_sheet_max_row)
             elif status == 'Closed':
                 lastRunValue = workSheet['G' + str(project_sheet_max_row)].value
-                diff = "=$G${0}-$G${1}".format(project_sheet_max_row + 1, project_sheet_max_row)
+                diff = "=G{0}-G{1}".format(project_sheet_max_row + 1, project_sheet_max_row)
             row.append(diff)
             lastWeekResults[project + '-' + status] = lastRunValue
         row = [currentWeek, currentDate] + row
@@ -322,23 +327,28 @@ if __name__ == '__main__':
                                     currentWeekResults[project + '-Closed'],
                                     lastWeekResults[project + '-Closed'],
                                     0,
-                                    "=$C${0}+$F${0}+$I${0}".format(rollUpSheet_max_row + rollupIndex),
+                                    "=C{0}+F{0}".format(rollUpSheet_max_row + rollupIndex),
+                                    0,0,
+                                    "=I{0}+L{0}".format(rollUpSheet_max_row + rollupIndex),
                                     0, 0
                                     ])
         else:
             rollupSheetRows.append([project, currentDate,
                                     currentWeekResults[project + '-New'],
                                     lastWeekResults[project + '-New'],
-                                    "=$C${0}-$D${0}".format(rollUpSheet_max_row + rollupIndex),
+                                    "=C{0}-D{0}".format(rollUpSheet_max_row + rollupIndex),
                                     currentWeekResults[project + '-In Progress'],
                                     lastWeekResults[project + '-In Progress'],
-                                    "=$F${0}-$G${0}".format(rollUpSheet_max_row + rollupIndex),
+                                    "=F{0}-G{0}".format(rollUpSheet_max_row + rollupIndex),
                                     currentWeekResults[project + '-Closed'],
                                     lastWeekResults[project + '-Closed'],
-                                    "=$I${0}-$J${0}".format(rollUpSheet_max_row + rollupIndex),
-                                    "=$C${0}+$F${0}+$I${0}".format(rollUpSheet_max_row + rollupIndex),
-                                    "=$D${0}+$G${0}+$J${0}".format(rollUpSheet_max_row + rollupIndex),
-                                    "=$L${0}-$M${0}".format(rollUpSheet_max_row + rollupIndex),
+                                    "=C{0}+F{0}".format(rollUpSheet_max_row + rollupIndex),
+                                    "=D{0}+G{0}".format(rollUpSheet_max_row + rollupIndex),
+                                    "=L{0}-M{0}".format(rollUpSheet_max_row + rollupIndex),
+                                    "=I{0}-J{0}".format(rollUpSheet_max_row + rollupIndex),
+                                    "=I{0}+L{0}".format(rollUpSheet_max_row + rollupIndex),
+                                    "=J{0}+M{0}".format(rollUpSheet_max_row + rollupIndex),
+                                    "=O{0}-P{0}".format(rollUpSheet_max_row + rollupIndex),
                                     ])
         rollupIndex += 1
     #### populate data for Rollup Sheet ###
