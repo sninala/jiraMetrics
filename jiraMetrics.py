@@ -19,7 +19,7 @@ from openpyxl.chart import BarChart, Series, Reference
 from openpyxl.chart.trendline import Trendline
 from openpyxl.chart.label import DataLabelList
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
-import sys
+import time, sys
 
 currentDirectory = os.path.dirname(os.path.realpath(__file__))
 output_dir = os.path.join(currentDirectory, 'output')
@@ -29,7 +29,9 @@ if os.path.exists(config_file):
     config = SafeConfigParser()
     config.read(config_file)
 else:
-    raise Exception( config_file + " not found" )
+    print config_file + " not found"
+    time.sleep(5)
+    sys.exit(0)
 
 baseUrl = config.get('API', 'search_api_url')
 userName = config.get('BUG_TRACKER', 'username')
@@ -49,7 +51,9 @@ if os.path.exists(excelFileName):
     try:
         os.rename(excelFileName, excelFileName)
     except OSError as e:
-        raise OSError(excelFileName + ' already in use. Please close it')
+        print excelFileName + ' already in use. Please close it'
+        time.sleep(5)
+        sys.exit(0)
 
 ertProjects = [project.strip() for project in config.get('BUG_TRACKER', 'projects').split(",")]
 
@@ -80,80 +84,84 @@ def is_date(string):
 
 def extract_data_from_old_file_and_insert_into_new_file():
     oldWorkBookFileName = os.path.join(currentDirectory, 'From 2015-current - Combined 2017-03-16.xlsm')
-    ertProjects = ['Expert', 'ePRO', 'RCVS', 'SPOR', 'Mport', 'CRQST']
-    oldWorkBook = load_workbook(oldWorkBookFileName, data_only=True)
-    rollUpSheet = oldWorkBook['Rollup']
-    oldData = collections.OrderedDict()
-    RollupData = collections.OrderedDict()
-
-    for row in rollUpSheet.iter_rows():
-        if row[0].row == 1:
-            continue
-        oldData[row[0].value + '##' + str(row[1].value)] = "##".join(
-            [str(row[2].value), str(row[5].value), str(row[8].value)])
-        data = []
-        for i in range(2, 17):
-            data.append(row[i].value)
-        data = [str(x) for x in data]
-        RollupData[row[0].value + '##' + str(row[1].value)] = "##".join(data)
-    dates = set()
-    keys = oldData.keys()
-    for key in keys:
-        project, date = key.split("##")
-        if is_date(date):
-            dates.add(date)
-    dates = sorted(dates, key=lambda x: datetime.datetime.strptime(x, '%Y-%m-%d %H:%M:%S'))
-    latestWorkBook = load_workbook(excelFileName)
-    ### populate the project specific sheets
-    for project in ertProjects:
-        project1 = project
-        if project1 == 'Expert':
-            project1 = 'EXPRT'
-        elif project1 == 'ePRO':
-            project1 = 'EPR'
-        ws = latestWorkBook[project1.upper()]
-        for date in dates:
-            key = project + '##' + date
-            if key in oldData.keys():
-                (New, InProgress, Closed) = oldData[key].split('##')
-                project_sheet_max_row = ws.max_row
-                date1 = datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S').strftime("%m/%d/%Y")
-                weekOfYear = datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S').strftime("%W-%Y")
-                if project_sheet_max_row == 1:
-                    diff1 = diff2 = diff3 = 0
-                else:
-                    diff1 = "=C{0}-C{1}".format(project_sheet_max_row + 1, project_sheet_max_row)
-                    diff2 = "=E{0}-E{1}".format(project_sheet_max_row + 1, project_sheet_max_row)
-                    diff3 = "=G{0}-G{1}".format(project_sheet_max_row + 1, project_sheet_max_row)
-                row = [weekOfYear, date1, int(New), diff1, int(InProgress), diff2, int(Closed), diff3]
-                ws.append(row)
-
-    ##populate the Rollup
-    latestRollup = latestWorkBook['Rollup']
-    for date in dates:
+    if os.path.exists(oldWorkBookFileName):
+        ertProjects = ['Expert', 'ePRO', 'RCVS', 'SPOR', 'Mport', 'CRQST']
+        print "Loading the old workbook"
+        oldWorkBook = load_workbook(oldWorkBookFileName, data_only=True)
+        rollUpSheet = oldWorkBook['Rollup']
+        oldData = collections.OrderedDict()
+        RollupData = collections.OrderedDict()
+        print "Extracting Data from {} workbook and loading into {} workbook".format(oldWorkBookFileName, excelFileName)
+        for row in rollUpSheet.iter_rows():
+            if row[0].row == 1:
+                continue
+            oldData[row[0].value + '##' + str(row[1].value)] = "##".join(
+                [str(row[2].value), str(row[5].value), str(row[8].value)])
+            data = []
+            for i in range(2, 17):
+                data.append(row[i].value)
+            data = [str(x) for x in data]
+            RollupData[row[0].value + '##' + str(row[1].value)] = "##".join(data)
+        dates = set()
+        keys = oldData.keys()
+        for key in keys:
+            project, date = key.split("##")
+            if is_date(date):
+                dates.add(date)
+        dates = sorted(dates, key=lambda x: datetime.datetime.strptime(x, '%Y-%m-%d %H:%M:%S'))
+        latestWorkBook = load_workbook(excelFileName)
+        ### populate the project specific sheets
         for project in ertProjects:
-            key = project + '##' + date
             project1 = project
             if project1 == 'Expert':
                 project1 = 'EXPRT'
             elif project1 == 'ePRO':
                 project1 = 'EPR'
-            if key in RollupData.keys():
-                date1 = datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S').strftime("%m/%d/%Y")
-                values = RollupData[key].split('##')
-                int_values = []
-                for value in values:
-                    if value == 'none':
-                        value = 0;
-                    try:
-                        value = int(value)
-                    except Exception:
-                        value = str(value)
-                    int_values.append(value)
-                row = [project1, date1] + int_values
-                latestRollup.append(row)
+            ws = latestWorkBook[project1.upper()]
+            for date in dates:
+                key = project + '##' + date
+                if key in oldData.keys():
+                    (New, InProgress, Closed) = oldData[key].split('##')
+                    project_sheet_max_row = ws.max_row
+                    date1 = datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S').strftime("%m/%d/%Y")
+                    weekOfYear = datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S').strftime("%W-%Y")
+                    if project_sheet_max_row == 1:
+                        diff1 = diff2 = diff3 = 0
+                    else:
+                        diff1 = "=C{0}-C{1}".format(project_sheet_max_row + 1, project_sheet_max_row)
+                        diff2 = "=E{0}-E{1}".format(project_sheet_max_row + 1, project_sheet_max_row)
+                        diff3 = "=G{0}-G{1}".format(project_sheet_max_row + 1, project_sheet_max_row)
+                    row = [weekOfYear, date1, int(New), diff1, int(InProgress), diff2, int(Closed), diff3]
+                    ws.append(row)
+        ##populate the Rollup
+        latestRollup = latestWorkBook['Rollup']
+        for date in dates:
+            for project in ertProjects:
+                key = project + '##' + date
+                project1 = project
+                if project1 == 'Expert':
+                    project1 = 'EXPRT'
+                elif project1 == 'ePRO':
+                    project1 = 'EPR'
+                if key in RollupData.keys():
+                    date1 = datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S').strftime("%m/%d/%Y")
+                    values = RollupData[key].split('##')
+                    int_values = []
+                    for value in values:
+                        if value == 'none':
+                            value = 0;
+                        try:
+                            value = int(value)
+                        except Exception:
+                            value = str(value)
+                        int_values.append(value)
+                    row = [project1, date1] + int_values
+                    latestRollup.append(row)
 
-    latestWorkBook.save(filename=excelFileName)
+        latestWorkBook.save(filename=excelFileName)
+        print "Data Extraction Completed"
+    else:
+        print "{} File Not exists".format(oldWorkBookFileName)
 
 
 
@@ -260,6 +268,7 @@ def createWeeklyTotalBarChart():
 if __name__ == '__main__':
     #### Creare Empty worksheets if the file not exists
     if not os.path.exists(excelFileName):
+        print "Creating Empyt workbook as {}".format(excelFileName)
         statusList = ['Current Week', 'Last Week', 'Difference']
         finalStatusList = ['Current Week', 'Last Week', 'Growth']
         row = '2'
@@ -308,7 +317,8 @@ if __name__ == '__main__':
             workSheet = workBook.create_sheet(project)
             workSheet.append(row)
             workSheet.freeze_panes = 'A2'
-
+        print "workbook created"
+        print "Applying Styles to workbook"
         header_font = Font(name='Calibri', size=12, bold=True)
         side = Side(border_style='thin', color="FF000000")
         color_fill = PatternFill("solid", fgColor="87CEEB")
@@ -329,15 +339,16 @@ if __name__ == '__main__':
                     cell.font = header_font
                     cell.fill = color_fill
         workBook.save(filename=excelFileName)
+        print "Styles applied"
         extract_data_from_old_file_and_insert_into_new_file()
 
+    print "Getting the latest metrics from jira for {}".format(currentDate)
     workBook = load_workbook(excelFileName)
     #### populating data for project Sheets ###
     projectWorkSheet = workBook[ertProjects[0]]
     lastRunWeek = projectWorkSheet.cell(row=projectWorkSheet.max_row, column=projectWorkSheet.min_column).value
     lastRunDate = projectWorkSheet.cell(row=projectWorkSheet.max_row, column=projectWorkSheet.min_column + 1).value
     script_executed_for_current_week = (projectWorkSheet.max_row > 1 and (lastRunDate == currentDate))
-    print script_executed_for_current_week
     '''
     script_executed_for_current_week = (
         projectWorkSheet.max_row > 1 and (lastRunWeek == currentWeek) or (lastRunDate==currentDate)
