@@ -79,7 +79,7 @@ def is_date(string):
         return False
 
 def extract_data_from_old_file_and_insert_into_new_file():
-    oldWorkBookFileName = os.path.join(currentDirectory, 'From 2015-current - Combined 2017-02-23.xlsm')
+    oldWorkBookFileName = os.path.join(currentDirectory, 'From 2015-current - Combined 2017-03-16.xlsm')
     ertProjects = ['Expert', 'ePRO', 'RCVS', 'SPOR', 'Mport', 'CRQST']
     oldWorkBook = load_workbook(oldWorkBookFileName, data_only=True)
     rollUpSheet = oldWorkBook['Rollup']
@@ -298,8 +298,7 @@ if __name__ == '__main__':
         ws['O1'].value = "Total"
         for i in range(ord('O'), ord('Q') + 1):
             ws[chr(i) + row] = finalStatusList.pop(0)
-        freeze_cell = ws['A2']
-        ws.freeze_panes = freeze_cell
+        ws.freeze_panes = 'A3'
         sheet_cols = status_arr
         for index in (1, 3, 5):
             sheet_cols.insert(index, 'diff')
@@ -308,8 +307,7 @@ if __name__ == '__main__':
         for project in ertProjects:
             workSheet = workBook.create_sheet(project)
             workSheet.append(row)
-            cell = workSheet['A1']
-            workSheet.freeze_panes = cell
+            workSheet.freeze_panes = 'A2'
 
         header_font = Font(name='Calibri', size=12, bold=True)
         side = Side(border_style='thin', color="FF000000")
