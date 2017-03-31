@@ -22,8 +22,6 @@ from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Fo
 import time, sys
 
 currentDirectory = os.path.dirname(os.path.realpath(__file__))
-output_dir = os.path.join(currentDirectory, 'output')
-excelFileName = os.path.join(output_dir, 'Jira_Metrics.xlsx')
 config_file = os.path.join(currentDirectory, 'config','jiraMetrics.ini')
 if os.path.exists(config_file):
     config = SafeConfigParser()
@@ -33,9 +31,17 @@ else:
     time.sleep(5)
     sys.exit(0)
 
+output_dir = os.path.join(currentDirectory, 'output')
+excelFileName = os.path.join(output_dir, config.get('OUTPUT', 'output_file_name'))
+
 baseUrl = config.get('API', 'search_api_url')
 userName = config.get('BUG_TRACKER', 'username')
 password = config.get('BUG_TRACKER', 'password')
+project_name_mapper = dict()
+project_code_vs_names = config.get('BUG_TRACKER', 'project_code_vs_name_map').split(',')
+for item in project_code_vs_names:
+    (project_code, project_name) = item.split('=>')
+    project_name_mapper[project_code.strip()] = project_name.strip()
 
 jsonOutputDir = os.path.join(currentDirectory, 'json')
 excelOutputDir = os.path.join(currentDirectory, 'excel')
@@ -62,8 +68,13 @@ jql_items = config.items('JQL')
 for status, query in jql_items:
     status_arr.append(status)
 status_arr = [string.capwords(status) for status in status_arr]
+days_to_subtract = config.get('BUG_TRACKER', 'day_difference')
+try:
+    days_to_subtract = int(days_to_subtract)
+except ValueError:
+    days_to_subtract = 0
 
-currentDate = datetime.date.today()
+currentDate = datetime.date.today() - datetime.timedelta(days=days_to_subtract)
 currentWeek = currentDate.strftime("%W-%Y")
 currentDate_YYYY_MM_DD = currentDate.strftime("%Y-%m-%d")
 currentDate = currentDate.strftime("%m/%d/%Y")
@@ -83,7 +94,7 @@ def is_date(string):
         return False
 
 def extract_data_from_old_file_and_insert_into_new_file():
-    oldWorkBookFileName = os.path.join(currentDirectory, 'From 2015-current - Combined 2017-03-16.xlsm')
+    oldWorkBookFileName = os.path.join(currentDirectory, 'From 2015-current - Combined 2017-03-23.xlsm')
     if os.path.exists(oldWorkBookFileName):
         ertProjects = ['Expert', 'ePRO', 'RCVS', 'SPOR', 'Mport', 'CRQST']
         print "Loading the old workbook"
@@ -139,10 +150,6 @@ def extract_data_from_old_file_and_insert_into_new_file():
             for project in ertProjects:
                 key = project + '##' + date
                 project1 = project
-                if project1 == 'Expert':
-                    project1 = 'EXPRT'
-                elif project1 == 'ePRO':
-                    project1 = 'EPR'
                 if key in RollupData.keys():
                     date1 = datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S').strftime("%m/%d/%Y")
                     values = RollupData[key].split('##')
@@ -412,7 +419,7 @@ if __name__ == '__main__':
         if rollUpSheet_max_row == 2:
             currentWeekTotal = currentWeekResults[project + '-New'] +\
                 currentWeekResults[project + '-In Progress'] + currentWeekResults[project + '-Closed']
-            rollupSheetRows.append([project, currentDate,
+            rollupSheetRows.append([project_name_mapper[project], currentDate,
                                     currentWeekResults[project + '-New'],
                                     lastWeekResults[project + '-New'],
                                     0,
@@ -428,7 +435,7 @@ if __name__ == '__main__':
                                     0, 0
                                     ])
         else:
-            rollupSheetRows.append([project, currentDate,
+            rollupSheetRows.append([project_name_mapper[project], currentDate,
                                     currentWeekResults[project + '-New'],
                                     lastWeekResults[project + '-New'],
                                     "=C{0}-D{0}".format(rollUpSheet_max_row + rollupIndex),
