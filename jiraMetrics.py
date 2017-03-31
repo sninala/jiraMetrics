@@ -37,7 +37,7 @@ excelFileName = os.path.join(output_dir, config.get('OUTPUT', 'output_file_name'
 baseUrl = config.get('API', 'search_api_url')
 userName = config.get('BUG_TRACKER', 'username')
 password = config.get('BUG_TRACKER', 'password')
-project_name_mapper = dict()
+project_name_mapper = collections.OrderedDict()
 project_code_vs_names = config.get('BUG_TRACKER', 'project_code_vs_name_map').split(',')
 for item in project_code_vs_names:
     (project_code, project_name) = item.split('=>')
@@ -96,7 +96,8 @@ def is_date(string):
 def extract_data_from_old_file_and_insert_into_new_file():
     oldWorkBookFileName = os.path.join(currentDirectory, 'From 2015-current - Combined 2017-03-23.xlsm')
     if os.path.exists(oldWorkBookFileName):
-        ertProjects = ['Expert', 'ePRO', 'RCVS', 'SPOR', 'Mport', 'CRQST']
+        #ertProjects = ['Expert', 'ePRO', 'Mport', 'RCVS', 'SPOR', 'CRQST']
+        ertProjects = project_name_mapper.values()
         print "Loading the old workbook"
         oldWorkBook = load_workbook(oldWorkBookFileName, data_only=True)
         rollUpSheet = oldWorkBook['Rollup']
