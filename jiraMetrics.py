@@ -21,63 +21,6 @@ from openpyxl.chart.label import DataLabelList
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
 import time, sys
 
-currentDirectory = os.path.dirname(os.path.realpath(__file__))
-config_file = os.path.join(currentDirectory, 'config','jiraMetrics.ini')
-if os.path.exists(config_file):
-    config = SafeConfigParser()
-    config.read(config_file)
-else:
-    print config_file + " not found"
-    time.sleep(5)
-    sys.exit(0)
-
-output_dir = os.path.join(currentDirectory, 'output')
-excelFileName = os.path.join(output_dir, config.get('OUTPUT', 'output_file_name'))
-
-baseUrl = config.get('API', 'search_api_url')
-userName = config.get('BUG_TRACKER', 'username')
-password = config.get('BUG_TRACKER', 'password')
-project_name_mapper = collections.OrderedDict()
-project_code_vs_names = config.get('BUG_TRACKER', 'project_code_vs_name_map').split(',')
-for item in project_code_vs_names:
-    (project_code, project_name) = item.split('=>')
-    project_name_mapper[project_code.strip()] = project_name.strip()
-
-jsonOutputDir = os.path.join(currentDirectory, 'json')
-excelOutputDir = os.path.join(currentDirectory, 'excel')
-
-if not os.path.exists(output_dir):
-    os.makedirs(output_dir)
-if not os.path.exists(jsonOutputDir):
-    os.makedirs(jsonOutputDir)
-if not os.path.exists(excelOutputDir):
-    os.makedirs(excelOutputDir)
-
-if os.path.exists(excelFileName):
-    try:
-        os.rename(excelFileName, excelFileName)
-    except OSError as e:
-        print excelFileName + ' already in use. Please close it'
-        time.sleep(5)
-        sys.exit(0)
-
-ertProjects = [project.strip() for project in config.get('BUG_TRACKER', 'projects').split(",")]
-
-status_arr = []
-jql_items = config.items('JQL')
-for status, query in jql_items:
-    status_arr.append(status)
-status_arr = [string.capwords(status) for status in status_arr]
-days_to_subtract = config.get('BUG_TRACKER', 'day_difference')
-try:
-    days_to_subtract = int(days_to_subtract)
-except ValueError:
-    days_to_subtract = 0
-
-currentDate = datetime.date.today() - datetime.timedelta(days=days_to_subtract)
-currentWeek = currentDate.strftime("%W-%Y")
-currentDate_YYYY_MM_DD = currentDate.strftime("%Y-%m-%d")
-currentDate = currentDate.strftime("%m/%d/%Y")
 
 def writeResponseToFileSystem(project, status, response):
     jsonFile = os.path.join(jsonOutputDir, project + '-' + status + '-' + currentDate_YYYY_MM_DD + '.json')
@@ -86,6 +29,7 @@ def writeResponseToFileSystem(project, status, response):
     excelFile = os.path.join(excelOutputDir, project + '-' + status + '-' + currentDate_YYYY_MM_DD + '.xlsx')
     pandas.read_json(jsonFile).to_excel(excelFile)
 
+
 def is_date(string):
     try:
         parse(string)
@@ -93,11 +37,11 @@ def is_date(string):
     except ValueError:
         return False
 
+
 def extract_data_from_old_file_and_insert_into_new_file():
-    oldWorkBookFileName = os.path.join(currentDirectory, 'From 2015-current - Combined 2017-03-23.xlsm')
+    oldWorkBookFileName = os.path.join(CURRENT_DIRECTORY, 'From 2015-current - Combined 2017-03-23.xlsm')
     if os.path.exists(oldWorkBookFileName):
-        #ertProjects = ['Expert', 'ePRO', 'Mport', 'RCVS', 'SPOR', 'CRQST']
-        ertProjects = project_name_mapper.values()
+        ertProjects = old_work_book_project_name_mapper.values()
         print "Loading the old workbook"
         oldWorkBook = load_workbook(oldWorkBookFileName, data_only=True)
         rollUpSheet = oldWorkBook['Rollup']
@@ -148,9 +92,9 @@ def extract_data_from_old_file_and_insert_into_new_file():
         ##populate the Rollup
         latestRollup = latestWorkBook['Rollup']
         for date in dates:
-            for project in ertProjects:
+            for project_code, project in old_work_book_project_name_mapper.iteritems():
                 key = project + '##' + date
-                project1 = project
+                project1 = latest_project_name_mapper[project_code]
                 if key in RollupData.keys():
                     date1 = datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S').strftime("%m/%d/%Y")
                     values = RollupData[key].split('##')
@@ -170,7 +114,6 @@ def extract_data_from_old_file_and_insert_into_new_file():
         print "Data Extraction Completed"
     else:
         print "{} File Not exists".format(oldWorkBookFileName)
-
 
 
 def getResponseFromJira(project, status, query):
@@ -218,7 +161,7 @@ def createNewWeeklyMetricsSheet(workBook, workSheet):
         workSheet.append(row)
 
 
-def updateWeeklyMetricsSheet(workBook, workSheet):
+def updateWeeklyMetricsSheet(workBook, workSheet, currentDate):
     metrics = collections.OrderedDict()
     for project in ertProjects:
         ws = workBook[project]
@@ -242,19 +185,20 @@ def updateWeeklyMetricsSheet(workBook, workSheet):
             return
     workSheet.append(newRow)
 
-def createWeeklyTotalBarChart():
-    chartName = "WeeklyTotals"
+
+def create_or_update_weekly_total_bar_chart(excelFileName, currentDate):
+    chart_name = "WeeklyTotals"
     workBook = load_workbook(excelFileName)
     sheets = workBook.get_sheet_names()
-    if chartName not in sheets:
-        print "Creating Sheet {}".format(chartName)
-        workSheet = workBook.create_sheet(chartName, 0)
+    if chart_name not in sheets:
+        print "Creating Sheet {}".format(chart_name)
+        workSheet = workBook.create_sheet(chart_name, 0)
         workSheet.sheet_properties.tabColor = "1072BA"
         createNewWeeklyMetricsSheet(workBook, workSheet)
     else:
-        print "Updating {} Sheet".format(chartName)
-        workSheet = workBook.get_sheet_by_name(chartName)
-        updateWeeklyMetricsSheet(workBook, workSheet)
+        print "Updating {} Sheet".format(chart_name)
+        workSheet = workBook.get_sheet_by_name(chart_name)
+        updateWeeklyMetricsSheet(workBook, workSheet, currentDate)
     chart1 = BarChart()
     chart1.style = 10
     chart1.title = "Weekly Total - All Tickets"
@@ -274,6 +218,70 @@ def createWeeklyTotalBarChart():
 
 
 if __name__ == '__main__':
+    CURRENT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
+    config_file = os.path.join(CURRENT_DIRECTORY, 'config', 'jiraMetrics.ini')
+    if os.path.exists(config_file):
+        config = SafeConfigParser()
+        config.read(config_file)
+    else:
+        print config_file + " not found"
+        time.sleep(5)
+        sys.exit(0)
+
+    output_dir = os.path.join(CURRENT_DIRECTORY, 'output')
+    excelFileName = os.path.join(output_dir, config.get('OUTPUT', 'output_file_name'))
+
+    baseUrl = config.get('API', 'search_api_url')
+    userName = config.get('BUG_TRACKER', 'username')
+    password = config.get('BUG_TRACKER', 'password')
+    old_work_book_project_name_mapper = collections.OrderedDict()
+    latest_project_name_mapper = collections.OrderedDict()
+    project_code_vs_names = config.get('BUG_TRACKER', 'old_workbook_project_code_vs_name_map').split(',')
+    for item in project_code_vs_names:
+        (project_code, project_name) = item.split('=>')
+        old_work_book_project_name_mapper[project_code.strip()] = project_name.strip()
+
+    latest_project_code_vs_names = config.get('BUG_TRACKER', 'project_code_vs_name_map').split(',')
+    for item in latest_project_code_vs_names:
+        (project_code, project_name) = item.split('=>')
+        latest_project_name_mapper[project_code.strip()] = project_name.strip()
+
+    jsonOutputDir = os.path.join(CURRENT_DIRECTORY, 'json')
+    excelOutputDir = os.path.join(CURRENT_DIRECTORY, 'excel')
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    if not os.path.exists(jsonOutputDir):
+        os.makedirs(jsonOutputDir)
+    if not os.path.exists(excelOutputDir):
+        os.makedirs(excelOutputDir)
+
+    if os.path.exists(excelFileName):
+        try:
+            os.rename(excelFileName, excelFileName)
+        except OSError as e:
+            print excelFileName + ' already in use. Please close it'
+            time.sleep(5)
+            sys.exit(0)
+
+    ertProjects = [project.strip() for project in config.get('BUG_TRACKER', 'projects').split(",")]
+
+    status_arr = []
+    jql_items = config.items('JQL')
+    for status, query in jql_items:
+        status_arr.append(status)
+    status_arr = [string.capwords(status) for status in status_arr]
+    days_to_subtract = config.get('BUG_TRACKER', 'day_difference')
+    try:
+        days_to_subtract = int(days_to_subtract)
+    except ValueError:
+        days_to_subtract = 0
+
+    currentDate = datetime.date.today() - datetime.timedelta(days=days_to_subtract)
+    currentWeek = currentDate.strftime("%W-%Y")
+    currentDate_YYYY_MM_DD = currentDate.strftime("%Y-%m-%d")
+    currentDate = currentDate.strftime("%m/%d/%Y")
+
     #### Creare Empty worksheets if the file not exists
     if not os.path.exists(excelFileName):
         print "Creating Empyt workbook as {}".format(excelFileName)
@@ -420,7 +428,7 @@ if __name__ == '__main__':
         if rollUpSheet_max_row == 2:
             currentWeekTotal = currentWeekResults[project + '-New'] +\
                 currentWeekResults[project + '-In Progress'] + currentWeekResults[project + '-Closed']
-            rollupSheetRows.append([project_name_mapper[project], currentDate,
+            rollupSheetRows.append([latest_project_name_mapper[project], currentDate,
                                     currentWeekResults[project + '-New'],
                                     lastWeekResults[project + '-New'],
                                     0,
@@ -436,7 +444,7 @@ if __name__ == '__main__':
                                     0, 0
                                     ])
         else:
-            rollupSheetRows.append([project_name_mapper[project], currentDate,
+            rollupSheetRows.append([latest_project_name_mapper[project], currentDate,
                                     currentWeekResults[project + '-New'],
                                     lastWeekResults[project + '-New'],
                                     "=C{0}-D{0}".format(rollUpSheet_max_row + rollupIndex),
@@ -465,6 +473,5 @@ if __name__ == '__main__':
         for row in rollupSheetRows:
             rollUpSheet.append(row)
     workBook.save(filename=excelFileName)
-    createWeeklyTotalBarChart()
+    create_or_update_weekly_total_bar_chart(excelFileName, currentDate)
     print "Task Completed"
-
