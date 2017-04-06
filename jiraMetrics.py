@@ -15,7 +15,7 @@ from ConfigParser import SafeConfigParser
 from requests.auth import HTTPBasicAuth
 from openpyxl import Workbook
 from openpyxl import load_workbook
-from openpyxl.chart import BarChart, Series, Reference
+from openpyxl.chart import BarChart, LineChart, Series, Reference
 from openpyxl.chart.trendline import Trendline
 from openpyxl.chart.label import DataLabelList
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
@@ -186,10 +186,135 @@ def updateWeeklyMetricsSheet(workBook, workSheet, currentDate):
     workSheet.append(newRow)
 
 
-def create_or_update_weekly_total_bar_chart(excelFileName, currentDate):
+def create_weekly_total_pivot_tables(workBook, pivots_worksheet):
+    metrics = collections.OrderedDict()
+    for project in ertProjects:
+        ws = workBook[project]
+        for row in ws.iter_rows():
+            rowList = []
+            for cell in row:
+                if cell.row == 1:
+                    continue
+                rowList.append(cell.value)
+            if rowList:
+                metrics[project + '#' + rowList[1]] = '#'.join(str(v) for v in rowList[2:])
+    keys = metrics.keys()
+    rundatesSet = set()
+    rundates = list()
+    for key in keys:
+        project, rundate = key.split('#')
+        if rundate not in rundatesSet:
+            rundatesSet.add(rundate)
+            rundates.append(rundate)
+    project_rows = []
+    for rundate in rundates:
+        total = 0
+        for project in ertProjects:
+            (New, diff1, InProgess, diff2, closed, diff3) = metrics[project + '#' + rundate].split('#')
+            projectTotal = int(New) + int(InProgess) + int(closed)
+            total = total + projectTotal
+        project_rows.append((rundate, total))
+    change_in_growth = []
+    for i in range(1, len(project_rows)):
+        change_in_growth.append((project_rows[i][0], project_rows[i][1] - project_rows[i - 1][1]))
+    change_in_growth = [('Date', 'Weekly Growth in Tickets')] + change_in_growth
+    for row in change_in_growth:
+        pivots_worksheet.append(row)
+    col = 5
+    row = 1
+    project_rows = [('Date', 'Sum of All Tickets')] + project_rows
+    for data_row in project_rows:
+        pivots_worksheet.cell(row=row, column=col).value = data_row[0]
+        pivots_worksheet.cell(row=row, column=col + 1).value = data_row[1]
+        row = row + 1
+
+
+def get_maximum_row(work_sheet, column_number):
+    max_row = 0
+    for row_num in range(1, work_sheet.max_row + 2):
+        if not work_sheet.cell(row=row_num, column = column_number).value:
+            max_row = row_num - 1
+            break
+    return  max_row
+
+
+def update_weekly_total_pivot_tables(workBook, pivots_worksheet):
+    metrics = collections.OrderedDict()
+    for project in ertProjects:
+        ws = workBook[project]
+        row = ws.max_row
+        latest_row = []
+        for col in range(ws.min_column, ws.max_column + 1):
+            latest_row.append((ws.cell(row=row, column=col).value))
+        metrics[project + '#' + latest_row[1]] = '#'.join(str(v) for v in latest_row[2:])
+    project, rundate = metrics.keys()[0].split('#')
+    total = 0
+    for project in ertProjects:
+        (New, diff1, InProgess, diff2, closed, diff3) = metrics[project + '#' + rundate].split('#')
+        projectTotal = int(New) + int(InProgess) + int(closed)
+        total = (total + projectTotal)
+    newRow = (rundate, total)
+
+
+    weekly_growth_max_row = get_maximum_row(pivots_worksheet, 1)
+    weekly_total_max_row = get_maximum_row(pivots_worksheet, 5)
+    weekly_growth_updated = False
+    for row in range(1, weekly_growth_max_row + 1):
+        run_date = pivots_worksheet.cell(row=row, column=1).value
+        weekly_growth = pivots_worksheet.cell(row=row, column=1).value
+        if run_date == currentDate:
+            previous_week_total = pivots_worksheet.cell(row=weekly_total_max_row -1, column=6).value
+            change_in_growth_for_current_week = newRow[1] - previous_week_total
+            pivots_worksheet.cell(row=row, column=1, value=run_date)
+            pivots_worksheet.cell(row=row, column=2, value=change_in_growth_for_current_week)
+            weekly_growth_updated = True
+    if not weekly_growth_updated:
+        previous_week_total = pivots_worksheet.cell(row=weekly_total_max_row, column=6).value
+        change_in_growth_for_current_week = newRow[1] - previous_week_total
+        pivots_worksheet.cell(row=weekly_growth_max_row + 1, column=1, value=run_date)
+        pivots_worksheet.cell(row= weekly_growth_max_row + 1, column=2, value=change_in_growth_for_current_week)
+    weekly_total_updated = False
+    for row in range(1, weekly_growth_max_row + 1):
+        run_date = pivots_worksheet.cell(row=row, column=5).value
+        if run_date == currentDate:
+            print "updating the data for {}".format(currentDate)
+            pivots_worksheet.cell(row=row, column=5, value=run_date)
+            pivots_worksheet.cell(row=row, column=6, value=newRow[1])
+            weekly_total_updated = True
+    if not weekly_growth_updated:
+        pivots_worksheet.cell(row=weekly_total_max_row + 1, column=5, value=run_date)
+        pivots_worksheet.cell(row= weekly_total_max_row + 1, column=6, value=change_in_growth_for_current_week)
+    return
+
+
+def create_or_update_weekly_total_charts(excelFileName, currentDate):
+    (weekly_total_pivots_sheet, weekly_total_charts_sheet) = ('Pivot-WeeklyTotals', 'Charts-WeeklyTotals')
     chart_name = "WeeklyTotals"
     workBook = load_workbook(excelFileName)
     sheets = workBook.get_sheet_names()
+    if not (weekly_total_pivots_sheet in sheets and weekly_total_charts_sheet in sheets):
+        print "Creating Sheet {}".format(weekly_total_pivots_sheet)
+        pivots_worksheet = workBook.create_sheet(weekly_total_pivots_sheet, 0)
+        pivots_worksheet.sheet_properties.tabColor = "1072BA"
+        print "Creating Sheet {}".format(weekly_total_charts_sheet)
+        charts_worksheet = workBook.create_sheet(weekly_total_charts_sheet, 0)
+        charts_worksheet.sheet_properties.tabColor = "1072BA"
+        create_weekly_total_pivot_tables(workBook, pivots_worksheet)
+    else:
+        pivots_worksheet = workBook.get_sheet_by_name(weekly_total_pivots_sheet)
+        charts_worksheet = workBook.get_sheet_by_name(weekly_total_charts_sheet)
+        update_weekly_total_pivot_tables(workBook, pivots_worksheet)
+
+    workBook.save(filename=excelFileName)
+    growth_change_date_column_number = 1
+    growth_change_value_column_number = 2
+    weekly_total_date_column_number = 5
+    weekly_total_value_column_number = 6
+    weekly_growth_max_row = get_maximum_row(pivots_worksheet, 1)
+    weekly_total_max_row = get_maximum_row(pivots_worksheet, 5)
+
+
+    '''
     if chart_name not in sheets:
         print "Creating Sheet {}".format(chart_name)
         workSheet = workBook.create_sheet(chart_name, 0)
@@ -199,13 +324,16 @@ def create_or_update_weekly_total_bar_chart(excelFileName, currentDate):
         print "Updating {} Sheet".format(chart_name)
         workSheet = workBook.get_sheet_by_name(chart_name)
         updateWeeklyMetricsSheet(workBook, workSheet, currentDate)
+    '''
     chart1 = BarChart()
+    chart1.height = 12
+    chart1.width = 30
     chart1.style = 10
     chart1.title = "Weekly Total - All Tickets"
     chart1.y_axis.title = 'Total'
     chart1.x_axis.title = 'Run Date'
-    data = Reference(workSheet, min_col=2, min_row=1, max_row=workSheet.max_row, max_col=workSheet.max_column)
-    cats = Reference(workSheet, min_col=1, min_row=2, max_row=workSheet.max_row)
+    data = Reference(pivots_worksheet, min_col=weekly_total_value_column_number, min_row=1, max_row=weekly_total_max_row, max_col=weekly_total_value_column_number)
+    cats = Reference(pivots_worksheet, min_col=weekly_total_date_column_number, min_row=2, max_row=weekly_total_max_row)
     chart1.add_data(data, titles_from_data=True)
     chart1.set_categories(cats)
     chart1.shape = 4
@@ -213,7 +341,31 @@ def create_or_update_weekly_total_bar_chart(excelFileName, currentDate):
     chart1.series[0].trendline.trendlineType = 'linear'
     chart1.dataLabels = DataLabelList()
     chart1.dataLabels.showVal = True
-    workSheet.add_chart(chart1, "H2")
+    charts_worksheet.add_chart(chart1, "A2")
+
+    c1 = LineChart()
+    c1.height = 12
+    c1.width = 30
+    c1.title = "Weekly Growth"
+    c1.style = 12
+    c1.y_axis.title = 'Growth'
+    c1.x_axis.title = 'Date'
+    data = Reference(pivots_worksheet, min_col=growth_change_value_column_number, min_row=1, max_col=growth_change_value_column_number, max_row=weekly_growth_max_row)
+    cats = Reference(pivots_worksheet, min_col=growth_change_date_column_number, min_row=2, max_row=weekly_growth_max_row)
+    c1.add_data(data, titles_from_data=True)
+    c1.set_categories(cats)
+    # Style the lines
+    s1 = c1.series[0]
+    s1.marker.symbol = "circle"
+    s1.marker.graphicalProperties.solidFill = "360AD2"  # Marker filling
+    s1.marker.graphicalProperties.line.solidFill = "360AD2"
+    s1.graphicalProperties.line.solidFill = "360AD2"
+    s1.graphicalProperties.line.width = 28568  # width in EMUs
+    s1.trendline = Trendline()
+    s1.trendline.trendlineType = 'linear'
+    # s1.smooth = True # Make the line smooth
+
+    charts_worksheet.add_chart(c1, "A30")
     workBook.save(filename=excelFileName)
 
 
@@ -473,5 +625,5 @@ if __name__ == '__main__':
         for row in rollupSheetRows:
             rollUpSheet.append(row)
     workBook.save(filename=excelFileName)
-    create_or_update_weekly_total_bar_chart(excelFileName, currentDate)
+    create_or_update_weekly_total_charts(excelFileName, currentDate)
     print "Task Completed"
