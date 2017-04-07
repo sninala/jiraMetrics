@@ -3,6 +3,7 @@ Created on Mar 3, 2017
 @author: Siva_Ninala
 '''
 import os
+import re
 import datetime
 import requests
 import urllib
@@ -39,15 +40,19 @@ def is_date(string):
 
 
 def extract_data_from_old_file_and_insert_into_new_file():
-    oldWorkBookFileName = os.path.join(CURRENT_DIRECTORY, 'From 2015-current - Combined 2017-03-23.xlsm')
-    if os.path.exists(oldWorkBookFileName):
+    for filename in os.listdir(CURRENT_DIRECTORY):
+        match = re.match('(From.*?.xlsm)', filename, re.I)
+        if match:
+            old_workbook_file_name = match.group(0)
+    old_workbook_file_name = os.path.join(CURRENT_DIRECTORY, old_workbook_file_name)
+    if os.path.exists(old_workbook_file_name):
         ertProjects = old_work_book_project_name_mapper.values()
         print "Loading the old workbook"
-        oldWorkBook = load_workbook(oldWorkBookFileName, data_only=True)
+        oldWorkBook = load_workbook(old_workbook_file_name, data_only=True)
         rollUpSheet = oldWorkBook['Rollup']
         oldData = collections.OrderedDict()
         RollupData = collections.OrderedDict()
-        print "Extracting Data from {} workbook and loading into {} workbook".format(oldWorkBookFileName, excelFileName)
+        print "Extracting Data from {} workbook and loading into {} workbook".format(old_workbook_file_name, excelFileName)
         for row in rollUpSheet.iter_rows():
             if row[0].row == 1:
                 continue
@@ -113,7 +118,7 @@ def extract_data_from_old_file_and_insert_into_new_file():
         latestWorkBook.save(filename=excelFileName)
         print "Data Extraction Completed"
     else:
-        print "{} File Not exists".format(oldWorkBookFileName)
+        print "{} File Not exists".format(old_workbook_file_name)
 
 
 def getResponseFromJira(project, status, query):
@@ -625,5 +630,11 @@ if __name__ == '__main__':
         for row in rollupSheetRows:
             rollUpSheet.append(row)
     workBook.save(filename=excelFileName)
+    old_weekly_totals_sheet = 'WeeklyTotals'
+    if old_weekly_totals_sheet in workBook.get_sheet_names():
+        std = workBook.get_sheet_by_name(old_weekly_totals_sheet)
+        workBook.remove_sheet(std)
+    workBook.save(filename=excelFileName)
     create_or_update_weekly_total_charts(excelFileName, currentDate)
+
     print "Task Completed"
