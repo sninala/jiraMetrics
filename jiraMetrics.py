@@ -133,64 +133,6 @@ def getResponseFromJira(project, status, query):
         raise Exception("Unable get response from Jira")
 
 
-def createNewWeeklyMetricsSheet(workBook, workSheet):
-    metrics = collections.OrderedDict()
-    for project in ertProjects:
-        ws = workBook[project]
-        for row in ws.iter_rows():
-            rowList = []
-            for cell in row:
-                if cell.row == 1:
-                    continue
-                rowList.append(cell.value)
-            if rowList:
-                metrics[project + '#' + rowList[1]] = '#'.join(str(v) for v in rowList[2:])
-    keys = metrics.keys()
-    rundatesSet = set()
-    rundates = list()
-    for key in keys:
-        project, rundate = key.split('#')
-        if rundate not in rundatesSet:
-            rundatesSet.add(rundate)
-            rundates.append(rundate)
-    projectrows = [('Date', 'Total')]
-    for rundate in rundates:
-        total = 0
-        for project in ertProjects:
-            (New, diff1, InProgess, diff2, closed, diff3) = metrics[project + '#' + rundate].split('#')
-            projectTotal = int(New) + int(InProgess) + int(closed)
-            total = total + projectTotal
-        projectrows.append((rundate, total))
-    rows = projectrows
-    for row in rows:
-        workSheet.append(row)
-
-
-def updateWeeklyMetricsSheet(workBook, workSheet, currentDate):
-    metrics = collections.OrderedDict()
-    for project in ertProjects:
-        ws = workBook[project]
-        row = ws.max_row
-        latest_row = []
-        for col in range(ws.min_column, ws.max_column + 1):
-            latest_row.append((ws.cell(row=row, column=col).value))
-        metrics[project + '#' + latest_row[1]] = '#'.join(str(v) for v in latest_row[2:])
-    project, rundate = metrics.keys()[0].split('#')
-    total = 0
-    for project in ertProjects:
-        (New, diff1, InProgess, diff2, closed, diff3) = metrics[project + '#' + rundate].split('#')
-        projectTotal = int(New) + int(InProgess) + int(closed)
-        total = (total + projectTotal)
-    newRow = (rundate, total)
-    for row in workSheet.iter_rows():
-        (rundate_cell, total_amount_cell) = (row[0], row[1])
-        if rundate_cell.value == currentDate:
-            print "updating the data for {}".format(currentDate)
-            total_amount_cell.value = newRow[1]
-            return
-    workSheet.append(newRow)
-
-
 def create_weekly_total_pivot_tables(workBook, pivots_worksheet):
     metrics = collections.OrderedDict()
     for project in ertProjects:
