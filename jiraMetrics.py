@@ -253,31 +253,34 @@ def create_or_update_weekly_total_charts(excelFileName, currentDate):
         update_weekly_total_pivot_tables(workBook, pivots_worksheet)
 
     workBook.save(filename=excelFileName)
-    data_points_in_chart = config.get('OUTPUT', 'weekly_totals_chart_data_points')
-    data_points_in_chart = int(data_points_in_chart)
     growth_change_date_column_number = 1
     growth_change_value_column_number = 2
     weekly_total_date_column_number = 5
     weekly_total_value_column_number = 6
     weekly_growth_max_row = get_maximum_row(pivots_worksheet, 1)
-    weekly_growth_min_row = weekly_growth_max_row - data_points_in_chart
     weekly_total_max_row = get_maximum_row(pivots_worksheet, 5)
-    weekly_total_min_row = weekly_total_max_row - data_points_in_chart
 
-    print "Creating Weekly Totals Chart"
+
+    '''
+    if chart_name not in sheets:
+        print "Creating Sheet {}".format(chart_name)
+        workSheet = workBook.create_sheet(chart_name, 0)
+        workSheet.sheet_properties.tabColor = "1072BA"
+        createNewWeeklyMetricsSheet(workBook, workSheet)
+    else:
+        print "Updating {} Sheet".format(chart_name)
+        workSheet = workBook.get_sheet_by_name(chart_name)
+        updateWeeklyMetricsSheet(workBook, workSheet, currentDate)
+    '''
     chart1 = BarChart()
-    chart1.height = 10
-    chart1.width = 25
+    chart1.height = 12
+    chart1.width = 30
     chart1.style = 10
     chart1.title = "Weekly Total - All Tickets"
     chart1.y_axis.title = 'Total'
     chart1.x_axis.title = 'Run Date'
-    data = Reference(
-        pivots_worksheet, min_col=weekly_total_value_column_number, min_row=weekly_total_min_row,
-        max_row=weekly_total_max_row, max_col=weekly_total_value_column_number)
-    cats = Reference(
-        pivots_worksheet, min_col=weekly_total_date_column_number,
-        min_row=weekly_total_min_row, max_row=weekly_total_max_row)
+    data = Reference(pivots_worksheet, min_col=weekly_total_value_column_number, min_row=1, max_row=weekly_total_max_row, max_col=weekly_total_value_column_number)
+    cats = Reference(pivots_worksheet, min_col=weekly_total_date_column_number, min_row=2, max_row=weekly_total_max_row)
     chart1.add_data(data, titles_from_data=True)
     chart1.set_categories(cats)
     chart1.shape = 4
@@ -287,20 +290,15 @@ def create_or_update_weekly_total_charts(excelFileName, currentDate):
     chart1.dataLabels.showVal = True
     charts_worksheet.add_chart(chart1, "A2")
 
-    print "Creating Weekly Growth Chart"
     c1 = LineChart()
-    c1.height = 10
-    c1.width = 25
+    c1.height = 12
+    c1.width = 30
     c1.title = "Weekly Growth"
     c1.style = 12
     c1.y_axis.title = 'Growth'
-    c1.x_axis.title = 'Run Date'
-    data = Reference(
-        pivots_worksheet, min_col=growth_change_value_column_number,
-        min_row=weekly_growth_min_row, max_col=growth_change_value_column_number, max_row=weekly_growth_max_row)
-    cats = Reference(
-        pivots_worksheet, min_col=growth_change_date_column_number,
-        min_row=weekly_growth_min_row, max_row=weekly_growth_max_row)
+    c1.x_axis.title = 'Date'
+    data = Reference(pivots_worksheet, min_col=growth_change_value_column_number, min_row=1, max_col=growth_change_value_column_number, max_row=weekly_growth_max_row)
+    cats = Reference(pivots_worksheet, min_col=growth_change_date_column_number, min_row=2, max_row=weekly_growth_max_row)
     c1.add_data(data, titles_from_data=True)
     c1.set_categories(cats)
     # Style the lines
