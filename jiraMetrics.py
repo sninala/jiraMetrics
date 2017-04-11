@@ -371,20 +371,20 @@ if __name__ == '__main__':
         row = '2'
         workBook = Workbook()
         ws = workBook.active
-        ###### Rollup Section setup ####
+        # Rollup Section setup ####
         ws.title = "Rollup"
-        #### setting Project ###
+        # setting Project ###
         ws.merge_cells('A1:A2')
         ws['A1'] = "Project"
         ws.merge_cells('B1:B2')
         ws['B1'] = "Run Date"
-        #### seting New section ###
+        # setting New section ###
         ws.merge_cells('C1:E1')
         ws['C1'].value = "New"
 
         for i, j in zip(range(3), range(ord('C'), ord('E') + 1)):
             ws[chr(j) + row] = statusList[i]
-        #### seting In Progress section ###
+        # setting In Progress section ###
         ws.merge_cells('F1:H1')
         ws['F1'].value = "In Progress"
         for i, j in zip(range(3), range(ord('F'), ord('H') + 1)):
@@ -476,7 +476,6 @@ if __name__ == '__main__':
             status = string.capwords(status)
             query = query.replace('__PROJECTNAME__', project)
             query = query.replace('__CURRENTDATE__', currentDate_YYYY_MM_DD)
-            #queryCount = getResponseFromJira(project, status, query)
             queryCount = jira_api_obj.get_response_from_jira(query)
             # time.sleep(10)
             row.append(queryCount)
@@ -522,7 +521,7 @@ if __name__ == '__main__':
                                     lastWeekResults[project + '-Closed'],
                                     0,
                                     "=C{0}+F{0}".format(rollUpSheet_max_row + rollupIndex),
-                                    0,0,
+                                    0, 0,
                                     "=I{0}+L{0}".format(rollUpSheet_max_row + rollupIndex),
                                     0, 0
                                     ])
@@ -545,7 +544,7 @@ if __name__ == '__main__':
                                     "=O{0}-P{0}".format(rollUpSheet_max_row + rollupIndex),
                                     ])
         rollupIndex += 1
-    #### populate data for Rollup Sheet ###
+    # populate data for Rollup Sheet ###
     if script_executed_for_current_week:
         index = 1
         for row in rollupSheetRows:
