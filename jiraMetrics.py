@@ -60,7 +60,7 @@ def extract_data_from_old_file_and_insert_into_new_file():
                 dates.add(date)
         dates = sorted(dates, key=lambda x: datetime.datetime.strptime(x, '%Y-%m-%d %H:%M:%S'))
         latestWorkBook = load_workbook(excelFileName)
-        ### populate the project specific sheets
+        # populate the project specific sheets
         for project in ertProjects:
             project1 = project
             if project1 == 'Expert':
@@ -95,7 +95,7 @@ def extract_data_from_old_file_and_insert_into_new_file():
                     int_values = []
                     for value in values:
                         if value == 'none':
-                            value = 0;
+                            value = 0
                         try:
                             value = int(value)
                         except Exception:
@@ -363,9 +363,9 @@ if __name__ == '__main__':
     currentDate_YYYY_MM_DD = currentDate.strftime("%Y-%m-%d")
     currentDate = currentDate.strftime("%m/%d/%Y")
 
-    #### Creare Empty worksheets if the file not exists
+    # Create Empty worksheets if the file not exists
     if not os.path.exists(excelFileName):
-        print "Creating Empyt workbook as {}".format(excelFileName)
+        print "Creating empty workbook as {}".format(excelFileName)
         statusList = ['Current Week', 'Last Week', 'Difference']
         finalStatusList = ['Current Week', 'Last Week', 'Growth']
         row = '2'
@@ -414,7 +414,7 @@ if __name__ == '__main__':
             workSheet = workBook.create_sheet(project)
             workSheet.append(row)
             workSheet.freeze_panes = 'A2'
-        print "workbook created"
+        print "Workbook created"
         print "Applying Styles to workbook"
         header_font = Font(name='Calibri', size=12, bold=True)
         side = Side(border_style='thin', color="FF000000")
