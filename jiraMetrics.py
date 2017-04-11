@@ -1,39 +1,28 @@
-'''
+"""
 Created on Mar 3, 2017
-@author: Siva_Ninala
-'''
+@author: Siva Ninala
+"""
 import os
 import re
 import datetime
-import requests
-import urllib
 import collections
-import io, json
-import pandas
 import string
+import time
+import sys
 from dateutil.parser import parse
 from ConfigParser import SafeConfigParser
-from requests.auth import HTTPBasicAuth
 from openpyxl import Workbook
 from openpyxl import load_workbook
 from openpyxl.chart import BarChart, LineChart, Series, Reference
 from openpyxl.chart.trendline import Trendline
 from openpyxl.chart.label import DataLabelList
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
-import time, sys
+from lib.JiraAPIHandler import JiraAPIHandler
 
 
-def writeResponseToFileSystem(project, status, response):
-    jsonFile = os.path.join(jsonOutputDir, project + '-' + status + '-' + currentDate_YYYY_MM_DD + '.json')
-    with io.open(jsonFile, 'w', encoding='utf-8') as f:
-        f.write(json.dumps(response, ensure_ascii=False))
-    excelFile = os.path.join(excelOutputDir, project + '-' + status + '-' + currentDate_YYYY_MM_DD + '.xlsx')
-    pandas.read_json(jsonFile).to_excel(excelFile)
-
-
-def is_date(string):
+def is_date(date_string):
     try:
-        parse(string)
+        parse(date_string)
         return True
     except ValueError:
         return False
@@ -119,18 +108,6 @@ def extract_data_from_old_file_and_insert_into_new_file():
         print "Data Extraction Completed"
     else:
         print "{} File Not exists".format(old_workbook_file_name)
-
-
-def getResponseFromJira(project, status, query):
-    query_string = urllib.quote_plus(query)
-    response = requests.get(baseUrl + query_string + '&maxResults=1',
-                            auth=HTTPBasicAuth(userName, password))
-    if response.status_code == 200:
-        response_json = response.json()
-        # writeResponseToFileSystem(project, status, response_json)
-        return response_json['total']
-    else:
-        raise Exception("Unable get response from Jira")
 
 
 def create_weekly_total_pivot_tables(workBook, pivots_worksheet):
@@ -298,8 +275,13 @@ def create_or_update_weekly_total_charts(excelFileName, currentDate):
     c1.style = 12
     c1.y_axis.title = 'Growth'
     c1.x_axis.title = 'Run Date'
-    data = Reference(pivots_worksheet, min_col=growth_change_value_column_number, min_row=1, max_col=growth_change_value_column_number, max_row=weekly_growth_max_row)
-    cats = Reference(pivots_worksheet, min_col=growth_change_date_column_number, min_row=2, max_row=weekly_growth_max_row)
+    data = Reference(
+        pivots_worksheet, min_col=growth_change_value_column_number, min_row=1,
+        max_col=growth_change_value_column_number, max_row=weekly_growth_max_row
+    )
+    cats = Reference(
+        pivots_worksheet, min_col=growth_change_date_column_number, min_row=2, max_row=weekly_growth_max_row
+    )
     c1.add_data(data, titles_from_data=True)
     c1.set_categories(cats)
     # Style the lines
@@ -328,12 +310,11 @@ if __name__ == '__main__':
         time.sleep(5)
         sys.exit(0)
 
+    jira_api_obj = JiraAPIHandler(config)
+
     output_dir = os.path.join(CURRENT_DIRECTORY, 'output')
     excelFileName = os.path.join(output_dir, config.get('OUTPUT', 'output_file_name'))
 
-    baseUrl = config.get('API', 'search_api_url')
-    userName = config.get('BUG_TRACKER', 'username')
-    password = config.get('BUG_TRACKER', 'password')
     old_work_book_project_name_mapper = collections.OrderedDict()
     latest_project_name_mapper = collections.OrderedDict()
     project_code_vs_names = config.get('BUG_TRACKER', 'old_workbook_project_code_vs_name_map').split(',')
@@ -460,7 +441,7 @@ if __name__ == '__main__':
 
     print "Getting the latest metrics from jira for {}".format(currentDate)
     workBook = load_workbook(excelFileName)
-    #### populating data for project Sheets ###
+    # populating data for project Sheets #
     projectWorkSheet = workBook[ertProjects[0]]
     lastRunWeek = projectWorkSheet.cell(row=projectWorkSheet.max_row, column=projectWorkSheet.min_column).value
     lastRunDate = projectWorkSheet.cell(row=projectWorkSheet.max_row, column=projectWorkSheet.min_column + 1).value
@@ -495,7 +476,8 @@ if __name__ == '__main__':
             status = string.capwords(status)
             query = query.replace('__PROJECTNAME__', project)
             query = query.replace('__CURRENTDATE__', currentDate_YYYY_MM_DD)
-            queryCount = getResponseFromJira(project, status, query)
+            #queryCount = getResponseFromJira(project, status, query)
+            queryCount = jira_api_obj.get_response_from_jira(query)
             # time.sleep(10)
             row.append(queryCount)
             print status, queryCount
