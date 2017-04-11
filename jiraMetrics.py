@@ -47,7 +47,7 @@ def extract_data_from_old_file_and_insert_into_new_file():
     old_workbook_file_name = os.path.join(CURRENT_DIRECTORY, old_workbook_file_name)
     if os.path.exists(old_workbook_file_name):
         ertProjects = old_work_book_project_name_mapper.values()
-        print "Loading the old workbook"
+        print "Loading the old workbook {}".format(old_workbook_file_name)
         oldWorkBook = load_workbook(old_workbook_file_name, data_only=True)
         rollUpSheet = oldWorkBook['Rollup']
         oldData = collections.OrderedDict()
@@ -195,43 +195,56 @@ def update_weekly_total_pivot_tables(workBook, pivots_worksheet):
             latest_row.append((ws.cell(row=row, column=col).value))
         metrics[project + '#' + latest_row[1]] = '#'.join(str(v) for v in latest_row[2:])
     project, rundate = metrics.keys()[0].split('#')
-    total = 0
+    total_tickets_count = 0
     for project in ertProjects:
-        (New, diff1, InProgess, diff2, closed, diff3) = metrics[project + '#' + rundate].split('#')
+        key = project + '#' + rundate
+        (New, diff1, InProgess, diff2, closed, diff3) = metrics[key].split('#')
         projectTotal = int(New) + int(InProgess) + int(closed)
-        total = (total + projectTotal)
-    newRow = (rundate, total)
+        total_tickets_count = (total_tickets_count + projectTotal)
+    newRow = (rundate, total_tickets_count)
 
 
     weekly_growth_max_row = get_maximum_row(pivots_worksheet, 1)
     weekly_total_max_row = get_maximum_row(pivots_worksheet, 5)
     weekly_growth_updated = False
-    for row in range(1, weekly_growth_max_row + 1):
+    for row in range(2, weekly_growth_max_row + 1):
         run_date = pivots_worksheet.cell(row=row, column=1).value
-        weekly_growth = pivots_worksheet.cell(row=row, column=1).value
+        weekly_growth = pivots_worksheet.cell(row=row, column=2).value
+        print run_date, weekly_growth
+        print type(run_date), run_date
+        if type(run_date) == datetime.datetime:
+            run_date = run_date.strftime("%m/%d/%Y")
+        else:
+            run_date = datetime.datetime.strptime(run_date, "%m/%d/%Y").strftime("%m/%d/%Y")
         if run_date == currentDate:
-            previous_week_total = pivots_worksheet.cell(row=weekly_total_max_row -1, column=6).value
-            change_in_growth_for_current_week = newRow[1] - previous_week_total
+            print "updating the weekly growth pivot metrics for {}".format(currentDate)
+            previous_week_total = pivots_worksheet.cell(row=weekly_total_max_row-1, column=6).value
+            change_in_growth_for_current_week = total_tickets_count - previous_week_total
             pivots_worksheet.cell(row=row, column=1, value=run_date)
             pivots_worksheet.cell(row=row, column=2, value=change_in_growth_for_current_week)
             weekly_growth_updated = True
     if not weekly_growth_updated:
+        print "Adding the weekly growth pivot metrics for {}".format(currentDate)
         previous_week_total = pivots_worksheet.cell(row=weekly_total_max_row, column=6).value
-        change_in_growth_for_current_week = newRow[1] - previous_week_total
-        pivots_worksheet.cell(row=weekly_growth_max_row + 1, column=1, value=run_date)
+        change_in_growth_for_current_week = total_tickets_count - previous_week_total
+        pivots_worksheet.cell(row=weekly_growth_max_row + 1, column=1, value=currentDate)
         pivots_worksheet.cell(row= weekly_growth_max_row + 1, column=2, value=change_in_growth_for_current_week)
     weekly_total_updated = False
-    for row in range(1, weekly_growth_max_row + 1):
+    for row in range(2, weekly_total_max_row + 1):
         run_date = pivots_worksheet.cell(row=row, column=5).value
+        if type(run_date) == datetime.datetime:
+            run_date = run_date.strftime("%m/%d/%Y")
+        else:
+            run_date = datetime.datetime.strptime(run_date, "%m/%d/%Y").strftime("%m/%d/%Y")
         if run_date == currentDate:
-            print "updating the data for {}".format(currentDate)
+            print "updating the weekly total pivot metrics for {}".format(currentDate)
             pivots_worksheet.cell(row=row, column=5, value=run_date)
-            pivots_worksheet.cell(row=row, column=6, value=newRow[1])
+            pivots_worksheet.cell(row=row, column=6, value=total_tickets_count)
             weekly_total_updated = True
-    if not weekly_growth_updated:
-        pivots_worksheet.cell(row=weekly_total_max_row + 1, column=5, value=run_date)
-        pivots_worksheet.cell(row= weekly_total_max_row + 1, column=6, value=change_in_growth_for_current_week)
-    return
+    if not weekly_total_updated:
+        print "Adding the weekly total pivot metrics for {}".format(currentDate)
+        pivots_worksheet.cell(row=weekly_total_max_row + 1, column=5, value=currentDate)
+        pivots_worksheet.cell(row= weekly_total_max_row + 1, column=6, value=total_tickets_count)
 
 
 def create_or_update_weekly_total_charts(excelFileName, currentDate):
@@ -260,18 +273,6 @@ def create_or_update_weekly_total_charts(excelFileName, currentDate):
     weekly_growth_max_row = get_maximum_row(pivots_worksheet, 1)
     weekly_total_max_row = get_maximum_row(pivots_worksheet, 5)
 
-
-    '''
-    if chart_name not in sheets:
-        print "Creating Sheet {}".format(chart_name)
-        workSheet = workBook.create_sheet(chart_name, 0)
-        workSheet.sheet_properties.tabColor = "1072BA"
-        createNewWeeklyMetricsSheet(workBook, workSheet)
-    else:
-        print "Updating {} Sheet".format(chart_name)
-        workSheet = workBook.get_sheet_by_name(chart_name)
-        updateWeeklyMetricsSheet(workBook, workSheet, currentDate)
-    '''
     chart1 = BarChart()
     chart1.height = 12
     chart1.width = 30
@@ -296,7 +297,7 @@ def create_or_update_weekly_total_charts(excelFileName, currentDate):
     c1.title = "Weekly Growth"
     c1.style = 12
     c1.y_axis.title = 'Growth'
-    c1.x_axis.title = 'Date'
+    c1.x_axis.title = 'Run Date'
     data = Reference(pivots_worksheet, min_col=growth_change_value_column_number, min_row=1, max_col=growth_change_value_column_number, max_row=weekly_growth_max_row)
     cats = Reference(pivots_worksheet, min_col=growth_change_date_column_number, min_row=2, max_row=weekly_growth_max_row)
     c1.add_data(data, titles_from_data=True)
@@ -463,6 +464,7 @@ if __name__ == '__main__':
     projectWorkSheet = workBook[ertProjects[0]]
     lastRunWeek = projectWorkSheet.cell(row=projectWorkSheet.max_row, column=projectWorkSheet.min_column).value
     lastRunDate = projectWorkSheet.cell(row=projectWorkSheet.max_row, column=projectWorkSheet.min_column + 1).value
+    lastRunDate = datetime.datetime.strptime(lastRunDate, "%m/%d/%Y").strftime("%m/%d/%Y")
     script_executed_for_current_week = (projectWorkSheet.max_row > 1 and (lastRunDate == currentDate))
     '''
     script_executed_for_current_week = (
