@@ -33,6 +33,9 @@ class Constants(object):
     SUB_HEADER = "SUB_HEADER"
     PROJECT_SHEET_HEADER = ["Week#", "Run Date", "New", "diff", "In Progress", "diff", "Closed", "diff"]
     PROJECT_SHEET_FREEZE_PANE_CELL = 'A2'
+    STATUS_NEW = "New"
+    STATUS_INPROGRESS = "InProgress"
+    STATUS_CLOSED = "closed"
     # WEEKLY_TOTAL_ALL_TICKETS_CHART = "Charts-WeeklyTotals"
     ALL_TICKETS_WEEKLY_TOTALS = "Weekly-Totals-AllTickets"
     CLOSED_WEEKLY_TOTALS = "Closed-WeeklyTotals"

@@ -300,6 +300,8 @@ class ExcelWorkBookManager(object):
         ert_projects = self.get_project_names()
         weekly_total_metrics = collections.OrderedDict()
         weekly_totals_closed = collections.OrderedDict()
+        inprogress_weekly_totals = collections.OrderedDict()
+        new_weekly_totals = collections.OrderedDict()
         result = None
         for project in ert_projects:
             ws = workbook[project]
@@ -313,12 +315,18 @@ class ExcelWorkBookManager(object):
                     run_date = rows[1]
                     run_date = run_date.strftime("%m/%d/%Y")
                     weekly_total_metrics[project + '#' + run_date] = '#'.join(str(v) for v in rows[2:])
-                    weekly_totals_closed[project + '#' + run_date + '#closed'] = rows[6]
+                    weekly_totals_closed[project + '#' + run_date + '#' + Constants.STATUS_CLOSED] = rows[6]
+                    inprogress_weekly_totals[project + '#' + run_date + '#' + Constants.STATUS_INPROGRESS] = rows[4]
+                    new_weekly_totals[project + '#' + run_date + '#' + Constants.STATUS_NEW] = rows[2]
 
         if weekly_metric_type == Constants.ALL_TICKETS_WEEKLY_TOTALS:
             result = weekly_total_metrics
         elif weekly_metric_type == Constants.CLOSED_WEEKLY_TOTALS:
             result = weekly_totals_closed
+        elif weekly_metric_type == Constants.IN_PROGRESS_WEEKLY_TOTALS:
+            result = inprogress_weekly_totals
+        elif weekly_metric_type == Constants.NEW_WEEKLY_TOTALS:
+            result = new_weekly_totals
         return result
 
     @staticmethod
@@ -345,10 +353,9 @@ class ExcelWorkBookManager(object):
     def create_or_update_pivot_table_for(self, metric_name, out_put_file_name, program_run_date):
         workbook = load_workbook(out_put_file_name)
         sheets = workbook.get_sheet_names()
-        import pdb;pdb.set_trace()
         pivot_sheet_name = Constants.METRICS[metric_name]['pivot_sheet_name']
         pivot_sheet_position = Constants.METRICS[metric_name]['pivot_sheet_position']
-        print pivot_sheet_position
+        print pivot_sheet_name
         if not (pivot_sheet_name in sheets):
             print "Creating Sheet {}".format(pivot_sheet_name)
             pivots_worksheet = workbook.create_sheet(pivot_sheet_name, pivot_sheet_position)
@@ -357,7 +364,6 @@ class ExcelWorkBookManager(object):
         else:
             pivots_worksheet = workbook.get_sheet_by_name(pivot_sheet_name)
             self.update_pivot_tables_for(metric_name, pivots_worksheet, workbook, program_run_date)
-        print "Saving workbook after create/update {}".format(pivots_worksheet)
         workbook.save(filename=out_put_file_name)
 
     def create_pivot_tables_for(self, metric_name, pivots_worksheet, workbook):
@@ -367,6 +373,15 @@ class ExcelWorkBookManager(object):
             self.create_closed_weekly_totals_pivot_tables(workbook, pivots_worksheet)
         elif metric_name == Constants.CLOSED_WEEKLY_CHANGE:
             self.create_closed_weekly_change_pivot_tables(workbook, pivots_worksheet)
+        elif metric_name == Constants.IN_PROGRESS_WEEKLY_TOTALS:
+            self.create_inprogress_weekly_total_pivot_tables(workbook, pivots_worksheet)
+        elif metric_name == Constants.IN_PROGRESS_WEEKLY_CHANGE:
+            self.create_inprogress_weekly_change_pivot_tables(workbook, pivots_worksheet)
+        elif metric_name == Constants.NEW_WEEKLY_TOTALS:
+            self.create_new_weekly_total_pivot_tables(workbook, pivots_worksheet)
+        elif metric_name == Constants.NEW_WEEKLY_CHANGE:
+            self.create_new_weekly_change_pivot_tables(workbook, pivots_worksheet)
+
 
     def update_pivot_tables_for(self, metric_name, pivots_worksheet, workbook, program_run_date):
         if metric_name == Constants.ALL_TICKETS_WEEKLY_TOTALS:
@@ -402,6 +417,64 @@ class ExcelWorkBookManager(object):
             pivots_worksheet.cell(row=row, column=col + 1).value = data_row[1]
             row = row + 1
 
+    def create_inprogress_weekly_change_pivot_tables(self, workbook, pivots_worksheet):
+        inprogress_weekly_totals = self.get_pivot_metrics_from_work_book(workbook, Constants.IN_PROGRESS_WEEKLY_TOTALS)
+        run_dates = ExcelWorkBookManager.get_run_dates_from_metrics(inprogress_weekly_totals)
+        ert_projects = self.get_project_names()
+        header_row = ['Run Date'] + ert_projects
+        pivots_worksheet.append(header_row)
+        for i in range(1, len(run_dates)):
+            weekly_change_row = [run_dates[i]]
+            for project in ert_projects:
+                current_value = inprogress_weekly_totals[project + '#' + run_dates[i] + '#'
+                                                         + Constants.STATUS_INPROGRESS]
+                old_value = inprogress_weekly_totals[project + '#' + run_dates[i - 1] + '#'
+                                                     + Constants.STATUS_INPROGRESS]
+                weekly_change_row.append(current_value - old_value)
+            pivots_worksheet.append(weekly_change_row)
+
+    def create_new_weekly_change_pivot_tables(self, workbook, pivots_worksheet):
+        new_weekly_totals = self.get_pivot_metrics_from_work_book(workbook, Constants.NEW_WEEKLY_TOTALS)
+        run_dates = ExcelWorkBookManager.get_run_dates_from_metrics(new_weekly_totals)
+        ert_projects = self.get_project_names()
+        header_row = ['Run Date'] + ert_projects
+        pivots_worksheet.append(header_row)
+        for i in range(1, len(run_dates)):
+            weekly_change_row = [run_dates[i]]
+            for project in ert_projects:
+                current_value = new_weekly_totals[project + '#' + run_dates[i] + '#' + Constants.STATUS_NEW]
+                old_value = new_weekly_totals[project + '#' + run_dates[i - 1] + '#' + Constants.STATUS_NEW]
+                weekly_change_row.append(current_value - old_value)
+            pivots_worksheet.append(weekly_change_row)
+
+    def create_inprogress_weekly_total_pivot_tables(self, workbook, pivots_worksheet):
+        inprogress_weekly_totals = self.get_pivot_metrics_from_work_book(workbook, Constants.IN_PROGRESS_WEEKLY_TOTALS)
+        run_dates = ExcelWorkBookManager.get_run_dates_from_metrics(inprogress_weekly_totals)
+        ert_projects = self.get_project_names()
+        header_row = ['Run Date'] + ert_projects
+        pivots_worksheet.append(header_row)
+        for date in run_dates:
+            row = [date]
+            for project in ert_projects:
+                key = project + '#' + date + '#' + Constants.STATUS_INPROGRESS
+                inprogress_tickets_for_project = inprogress_weekly_totals[key]
+                row.append(inprogress_tickets_for_project)
+            pivots_worksheet.append(row)
+
+    def create_new_weekly_total_pivot_tables(self, workbook, pivots_worksheet):
+        new_weekly_totals = self.get_pivot_metrics_from_work_book(workbook, Constants.NEW_WEEKLY_TOTALS)
+        run_dates = ExcelWorkBookManager.get_run_dates_from_metrics(new_weekly_totals)
+        ert_projects = self.get_project_names()
+        header_row = ['Run Date'] + ert_projects
+        pivots_worksheet.append(header_row)
+        for date in run_dates:
+            row = [date]
+            for project in ert_projects:
+                key = project + '#' + date + '#' + Constants.STATUS_NEW
+                new_tickets_for_project = new_weekly_totals[key]
+                row.append(new_tickets_for_project)
+            pivots_worksheet.append(row)
+
     def create_closed_weekly_change_pivot_tables(self, workbook, closed_weekly_change_pivots_sheet):
         weekly_closed_total_metrics = self.get_pivot_metrics_from_work_book(workbook, Constants.CLOSED_WEEKLY_TOTALS)
         run_dates = ExcelWorkBookManager.get_run_dates_from_metrics(weekly_closed_total_metrics)
@@ -411,11 +484,10 @@ class ExcelWorkBookManager(object):
         for i in range(1, len(run_dates)):
             weekly_change_row = [run_dates[i]]
             for project in ert_projects:
-                current_value = weekly_closed_total_metrics[project + '#' + run_dates[i] + '#closed']
-                old_value = weekly_closed_total_metrics[project + '#' + run_dates[i-1] + '#closed']
+                current_value = weekly_closed_total_metrics[project + '#' + run_dates[i] + '#' + Constants.STATUS_CLOSED]
+                old_value = weekly_closed_total_metrics[project + '#' + run_dates[i-1] + '#' + Constants.STATUS_CLOSED]
                 weekly_change_row.append(current_value - old_value)
             closed_weekly_change_pivots_sheet.append(weekly_change_row)
-
 
     @staticmethod
     def get_run_dates_from_metrics(metrics):
@@ -494,12 +566,11 @@ class ExcelWorkBookManager(object):
             row = ws.max_row
             latest_row = []
             for col in range(ws.min_column, ws.max_column + 1):
-                latest_row.append((ws.cell(row=row, column=col).value))
+                latest_row.append(ws.cell(row=row, column=col).value)
             run_date = latest_row[1]
             run_date = run_date.strftime("%m/%d/%Y")
             latest_weekly_totals_closed[project + '#' + run_date + '#closed'] = latest_row[6]
         project, run_date, status = latest_weekly_totals_closed.keys()[0].split('#')
-        total = 0
         closed_counts = []
         for project in ert_projects:
             key = project + '#' + run_date + '#closed'
