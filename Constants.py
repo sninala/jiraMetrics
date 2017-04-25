@@ -1,3 +1,4 @@
+import collections
 class Constants(object):
     ROLLUP_SHEET_TITLE = "Rollup"
     ROLLUP_HEADER_ROWS = "2"
@@ -41,56 +42,55 @@ class Constants(object):
     NEW_WEEKLY_TOTALS = "New-WeeklyTotals"
     NEW_WEEKLY_CHANGE = "New-WeeklyChange"
     CLOSED_ELAPSED = "ClosedElapsed"
-    METRICS = {
-        ALL_TICKETS_WEEKLY_TOTALS: {
+    METRICS = collections.OrderedDict()
+    METRICS[ALL_TICKETS_WEEKLY_TOTALS] = {
             "pivot_sheet_name": "Pivot-Weekly-Totals-AllTickets",
             "pivot_sheet_position": 0,
             "charts_sheet_name": "Charts-WeeklyTotals",
             "charts_sheet_position": 0
-        },
-        CLOSED_WEEKLY_TOTALS: {
+        }
+    METRICS[CLOSED_WEEKLY_TOTALS] = {
             "pivot_sheet_name": "Pivot-Closed-WeeklyTotals",
             "pivot_sheet_position": 1,
             "charts_sheet_name": "Chart-Closed-WeeklyTotals",
             "charts_sheet_position": 1
-        },
-        CLOSED_WEEKLY_CHANGE: {
+        }
+    METRICS[CLOSED_WEEKLY_CHANGE] = {
             "pivot_sheet_name": "Pivot-Closed-WeeklyChange",
             "pivot_sheet_position": 2,
             "charts_sheet_name": "Chart-Closed-WeeklyChange",
             "charts_sheet_position": 2
-        },
-        IN_PROGRESS_WEEKLY_TOTALS: {
+        }
+    METRICS[IN_PROGRESS_WEEKLY_TOTALS] = {
             "pivot_sheet_name": "Pivot-InProgress-WeeklyTotals",
             "pivot_sheet_position": 3,
             "charts_sheet_name": "Chart-InProgress-WeeklyTotals",
             "charts_sheet_position": 3
-        },
-        IN_PROGRESS_WEEKLY_CHANGE: {
+        }
+    METRICS[IN_PROGRESS_WEEKLY_CHANGE] = {
             "pivot_sheet_name": "Pivot-InProg-WeeklyChange",
             "pivot_sheet_position": 4,
             "charts_sheet_name": "Chart-InProg-WeeklyChange",
             "charts_sheet_position": 4
-        },
-        NEW_WEEKLY_TOTALS: {
+        }
+    METRICS[NEW_WEEKLY_TOTALS] = {
             "pivot_sheet_name": "Pivot-New-WeeklyTotals",
             "pivot_sheet_position": 5,
             "charts_sheet_name": "Chart-New-WeeklyTotals",
             "charts_sheet_position": 5
-        },
-        NEW_WEEKLY_CHANGE: {
+        }
+    METRICS[NEW_WEEKLY_CHANGE] = {
             "pivot_sheet_name": "Pivot-New-WeeklyChange",
             "pivot_sheet_position": 6,
             "charts_sheet_name": "Chart-New-WeeklyChange",
             "charts_sheet_position": 6
-        },
-        CLOSED_ELAPSED: {
+        }
+    METRICS[CLOSED_ELAPSED] = {
             "pivot_sheet_name": "Pivot-ClosedElapsed",
             "pivot_sheet_position": 7,
             "charts_sheet_name": "Chart-ClosedElapsed",
             "charts_sheet_position": 7
         }
-    }
 
 if __name__ == '__main__':
     print Constants.CLOSED_ELAPSED

@@ -45,8 +45,8 @@ if __name__ == "__main__":
             print "{} File Not exists".format(old_workbook_file_name)
     jira_api = JiraAPIHandler(config)
     workbook_manager.populate_latest_metrics_from_jira_for_date(program_run_date, jira_api, out_put_file_name)
-    metric_names = Constants.METRICS.keys()
-    for metric_name in metric_names:
+    metrics = Constants.METRICS
+    for metric_name, metric_properties in metrics.iteritems():
         workbook_manager.create_or_update_pivot_table_for(metric_name, out_put_file_name, program_run_date)
 
     #workbook_manager.draw_charts_for_weekly_total_all_tickets(weekly_total_for_all_tickets_pivot, out_put_file_name)
