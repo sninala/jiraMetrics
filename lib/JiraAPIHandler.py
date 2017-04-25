@@ -17,6 +17,6 @@ class JiraAPIHandler(object):
         if response.status_code == 200:
             response_json = response.json()
             # writeResponseToFileSystem(project, status, response_json)
-            return response_json['total']
+            return response_json
         else:
             raise Exception("Unable get response from Jira")
