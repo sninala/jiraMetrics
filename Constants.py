@@ -36,6 +36,9 @@ class Constants(object):
     STATUS_NEW = "New"
     STATUS_INPROGRESS = "InProgress"
     STATUS_CLOSED = "closed"
+    STATUS_NEW_COLUMN = 2
+    STATUS_INPROGRESS_COLUMN = 4
+    STATUS_CLOSED_COLUMN = 6
     # WEEKLY_TOTAL_ALL_TICKETS_CHART = "Charts-WeeklyTotals"
     ALL_TICKETS_WEEKLY_TOTALS = "Weekly-Totals-AllTickets"
     CLOSED_WEEKLY_TOTALS = "Closed-WeeklyTotals"
