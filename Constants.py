@@ -59,43 +59,43 @@ class Constants(object):
             "pivot_sheet_name": "Pivot-Closed-WeeklyTotals",
             "pivot_sheet_position": 1,
             "charts_sheet_name": "Chart-Closed-WeeklyTotals",
-            "charts_sheet_position": 1
+            "charts_sheet_position": 2
         }
     METRICS[CLOSED_WEEKLY_CHANGE] = {
             "pivot_sheet_name": "Pivot-Closed-WeeklyChange",
             "pivot_sheet_position": 2,
             "charts_sheet_name": "Chart-Closed-WeeklyChange",
-            "charts_sheet_position": 2
+            "charts_sheet_position": 4
         }
     METRICS[IN_PROGRESS_WEEKLY_TOTALS] = {
             "pivot_sheet_name": "Pivot-InProgress-WeeklyTotals",
             "pivot_sheet_position": 3,
             "charts_sheet_name": "Chart-InProgress-WeeklyTotals",
-            "charts_sheet_position": 3
+            "charts_sheet_position": 6
         }
     METRICS[IN_PROGRESS_WEEKLY_CHANGE] = {
             "pivot_sheet_name": "Pivot-InProg-WeeklyChange",
             "pivot_sheet_position": 4,
             "charts_sheet_name": "Chart-InProg-WeeklyChange",
-            "charts_sheet_position": 4
+            "charts_sheet_position": 8
         }
     METRICS[NEW_WEEKLY_TOTALS] = {
             "pivot_sheet_name": "Pivot-New-WeeklyTotals",
             "pivot_sheet_position": 5,
             "charts_sheet_name": "Chart-New-WeeklyTotals",
-            "charts_sheet_position": 5
+            "charts_sheet_position": 10
         }
     METRICS[NEW_WEEKLY_CHANGE] = {
             "pivot_sheet_name": "Pivot-New-WeeklyChange",
             "pivot_sheet_position": 6,
             "charts_sheet_name": "Chart-New-WeeklyChange",
-            "charts_sheet_position": 6
+            "charts_sheet_position": 12
         }
     METRICS[CLOSED_ELAPSED] = {
             "pivot_sheet_name": "Pivot-ClosedElapsed",
             "pivot_sheet_position": 7,
             "charts_sheet_name": "Chart-ClosedElapsed",
-            "charts_sheet_position": 7
+            "charts_sheet_position": 14
         }
 
 if __name__ == '__main__':

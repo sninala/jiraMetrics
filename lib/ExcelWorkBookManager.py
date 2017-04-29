@@ -4,9 +4,7 @@ import collections
 from Constants import Constants
 from dateutil.parser import parse
 from openpyxl import Workbook, load_workbook
-from openpyxl.chart.trendline import Trendline
-from openpyxl.chart.label import DataLabelList
-from openpyxl.chart import BarChart, LineChart, Series, Reference
+from ChartManager import ChartManager
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
 
 
@@ -425,6 +423,7 @@ class ExcelWorkBookManager(object):
             row = row + 1
 
     def create_weekly_total_pivot_table_for(self, status, workbook, pivots_worksheet):
+        metric_name = None
         if status == Constants.STATUS_INPROGRESS:
             metric_name = Constants.IN_PROGRESS_WEEKLY_TOTALS
         elif status == Constants.STATUS_NEW:
@@ -445,6 +444,7 @@ class ExcelWorkBookManager(object):
             pivots_worksheet.append(row)
 
     def create_weekly_change_pivot_table_for(self, status, workbook, pivots_worksheet):
+        metric_name = None
         if status == Constants.STATUS_INPROGRESS:
             metric_name = Constants.IN_PROGRESS_WEEKLY_TOTALS
         elif status == Constants.STATUS_NEW:
@@ -594,7 +594,7 @@ class ExcelWorkBookManager(object):
                 previous_metrics.append(ws.cell(row=previous_results_row, column=col).value)
             run_date = latest_metrics[1]
             run_date = run_date.strftime("%m/%d/%Y")
-            weekly_change_for_project = latest_metrics[status_column] - previous_metrics[status_column]
+            weekly_change_for_project = (latest_metrics[status_column] - previous_metrics[status_column])
             latest_weekly_change[project + '#' + run_date] = weekly_change_for_project
         project, run_date = latest_weekly_change.keys()[0].split('#')
         weekly_changes = []
@@ -640,72 +640,87 @@ class ExcelWorkBookManager(object):
                 break
         return max_row
 
-    def draw_charts_for_weekly_total_all_tickets(self, pivots_worksheet, out_put_file_name):
-        weekly_total_charts_sheet = Constants.WEEKLY_TOTAL_ALL_TICKETS_CHART
+    def update_charts_for(self, metrics, out_put_file_name):
         workbook = load_workbook(out_put_file_name)
         sheets = workbook.get_sheet_names()
-        if not (weekly_total_charts_sheet in sheets):
-            print "Creating Sheet {}".format(weekly_total_charts_sheet)
-            charts_worksheet = workbook.create_sheet(weekly_total_charts_sheet, 0)
-            charts_worksheet.sheet_properties.tabColor = "1072BA"
-        else:
-            charts_worksheet = workbook.get_sheet_by_name(weekly_total_charts_sheet)
+        for metric_name in metrics:
+            pivots_worksheet = workbook.get_sheet_by_name(metrics[metric_name]['pivot_sheet_name'])
+            charts_sheet_name = metrics[metric_name]['charts_sheet_name']
+            charts_sheet_position = metrics[metric_name]['charts_sheet_position']
+            if not (charts_sheet_name in sheets):
+                print "Creating Sheet {}".format(charts_sheet_name)
+                charts_worksheet = workbook.create_sheet(charts_sheet_name, charts_sheet_position)
+                charts_worksheet.sheet_properties.tabColor = "1072BA"
+            else:
+                charts_worksheet = workbook.get_sheet_by_name(charts_sheet_name)
+            chart_manager = ChartManager(pivots_worksheet, charts_worksheet)
+            self.draw_charts_for(metric_name, chart_manager)
 
-        growth_change_date_column_number = 1
-        growth_change_value_column_number = 2
-        weekly_total_date_column_number = 5
-        weekly_total_value_column_number = 6
-        weekly_growth_max_row = self.get_maximum_row(pivots_worksheet, 1)
-        weekly_total_max_row = self.get_maximum_row(pivots_worksheet, 5)
-
-        print " creating Bar Chart"
-        chart1 = BarChart()
-        chart1.height = 12
-        chart1.width = 30
-        chart1.style = 10
-        chart1.title = "Weekly Total - All Tickets"
-        chart1.y_axis.title = 'Total'
-        chart1.x_axis.title = 'Run Date'
-        data = Reference(pivots_worksheet, min_col=weekly_total_value_column_number, min_row=1,
-                         max_row=weekly_total_max_row, max_col=weekly_total_value_column_number)
-        cats = Reference(pivots_worksheet, min_col=weekly_total_date_column_number, min_row=2,
-                         max_row=weekly_total_max_row)
-        chart1.add_data(data, titles_from_data=True)
-        chart1.set_categories(cats)
-        chart1.shape = 4
-        chart1.series[0].trendline = Trendline()
-        chart1.series[0].trendline.trendlineType = 'linear'
-        chart1.dataLabels = DataLabelList()
-        chart1.dataLabels.showVal = True
-        charts_worksheet.add_chart(chart1, "A2")
-
-        print "Creating line chart"
-        c1 = LineChart()
-        c1.height = 12
-        c1.width = 30
-        c1.title = "Weekly Growth"
-        c1.style = 12
-        c1.y_axis.title = 'Growth'
-        c1.x_axis.title = 'Run Date'
-        data = Reference(
-            pivots_worksheet, min_col=growth_change_value_column_number, min_row=1,
-            max_col=growth_change_value_column_number, max_row=weekly_growth_max_row
-        )
-        cats = Reference(
-            pivots_worksheet, min_col=growth_change_date_column_number, min_row=2, max_row=weekly_growth_max_row
-        )
-        c1.add_data(data, titles_from_data=True)
-        c1.set_categories(cats)
-        # Style the lines
-        s1 = c1.series[0]
-        s1.marker.symbol = "circle"
-        s1.marker.graphicalProperties.solidFill = "360AD2"  # Marker filling
-        s1.marker.graphicalProperties.line.solidFill = "360AD2"
-        s1.graphicalProperties.line.solidFill = "360AD2"
-        s1.graphicalProperties.line.width = 28568  # width in EMUs
-        s1.trendline = Trendline()
-        s1.trendline.trendlineType = 'linear'
-        # s1.smooth = True # Make the line smooth
-
-        charts_worksheet.add_chart(c1, "A30")
         workbook.save(filename=out_put_file_name)
+
+    def draw_charts_for(self, metric_name, chart_manager):
+        if metric_name == Constants.ALL_TICKETS_WEEKLY_TOTALS:
+            weekly_total_date_column_number = 5
+            weekly_total_value_column_number = 6
+            weekly_total_max_row = self.get_maximum_row(chart_manager.data_sheet, 5)
+            barchart_properties = dict()
+            barchart_properties['data_min_column'] = weekly_total_value_column_number
+            barchart_properties['data_min_row'] = 1
+            barchart_properties['data_max_column'] = weekly_total_value_column_number
+            barchart_properties['data_max_row'] = weekly_total_max_row
+            barchart_properties['cats_min_column'] = weekly_total_date_column_number
+            barchart_properties['cats_min_row'] = 2
+            barchart_properties['cats_max_column'] = weekly_total_value_column_number
+            barchart_properties['cats_max_row'] = weekly_total_max_row
+            barchart_properties['trendline'] = True
+            barchart_properties['data_labels'] = True
+            barchart_properties['cell'] = 'A2'
+            chart_manager.draw_barchart(barchart_properties)
+            growth_change_date_column_number = 1
+            growth_change_value_column_number = 2
+            weekly_growth_max_row = self.get_maximum_row(chart_manager.data_sheet, 1)
+            linechart_properties = dict()
+            linechart_properties['data_min_column'] = growth_change_value_column_number
+            linechart_properties['data_min_row'] = 1
+            linechart_properties['data_max_column'] = growth_change_value_column_number
+            linechart_properties['data_max_row'] = weekly_growth_max_row
+            linechart_properties['cats_min_column'] = growth_change_date_column_number
+            linechart_properties['cats_min_row'] = 2
+            linechart_properties['cats_max_column'] = growth_change_date_column_number
+            linechart_properties['cats_max_row'] = weekly_growth_max_row
+            linechart_properties['trendline'] = True
+            linechart_properties['data_labels'] = False
+            linechart_properties['cell'] = 'A30'
+            chart_manager.draw_linechart(linechart_properties)
+        elif (metric_name == Constants.CLOSED_WEEKLY_TOTALS)\
+                or (metric_name == Constants.IN_PROGRESS_WEEKLY_TOTALS)\
+                or (metric_name == Constants.NEW_WEEKLY_TOTALS):
+            barchart_properties = dict()
+            barchart_properties['data_min_column'] = 2
+            barchart_properties['data_min_row'] = 1
+            barchart_properties['data_max_column'] = chart_manager.data_sheet.max_column
+            barchart_properties['data_max_row'] = chart_manager.data_sheet.max_row
+            barchart_properties['cats_min_column'] = 1
+            barchart_properties['cats_min_row'] = 2
+            barchart_properties['cats_max_column'] = chart_manager.data_sheet.max_column
+            barchart_properties['cats_max_row'] = chart_manager.data_sheet.max_row
+            barchart_properties['trendline'] = False
+            barchart_properties['data_labels'] = False
+            barchart_properties['cell'] = 'A2'
+            chart_manager.draw_barchart(barchart_properties)
+        elif (metric_name == Constants.CLOSED_WEEKLY_CHANGE)\
+                or (metric_name == Constants.IN_PROGRESS_WEEKLY_CHANGE)\
+                or (metric_name == Constants.NEW_WEEKLY_CHANGE):
+            linechart_properties = dict()
+            linechart_properties['data_min_column'] = 2
+            linechart_properties['data_min_row'] = 1
+            linechart_properties['data_max_column'] = chart_manager.data_sheet.max_column
+            linechart_properties['data_max_row'] = chart_manager.data_sheet.max_row
+            linechart_properties['cats_min_column'] = 1
+            linechart_properties['cats_min_row'] = 2
+            linechart_properties['cats_max_column'] = chart_manager.data_sheet.max_column
+            linechart_properties['cats_max_row'] = chart_manager.data_sheet.max_row
+            linechart_properties['trendline'] = False
+            linechart_properties['data_labels'] = False
+            linechart_properties['cell'] = 'A2'
+            chart_manager.draw_linechart(linechart_properties)

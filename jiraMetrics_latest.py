@@ -49,5 +49,7 @@ if __name__ == "__main__":
     for metric_name, metric_properties in metrics.iteritems():
         workbook_manager.create_or_update_pivot_table_for(metric_name, out_put_file_name, program_run_date)
 
+    workbook_manager.update_charts_for(metrics, out_put_file_name)
+
     # workbook_manager.draw_charts_for_weekly_total_all_tickets(weekly_total_for_all_tickets_pivot, out_put_file_name)
     print "Task Completed"
