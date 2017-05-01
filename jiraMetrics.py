@@ -27,6 +27,144 @@ def is_date(date_string):
     except ValueError:
         return False
 
+def get_pivot_metrics(weekly_metric_type):
+    weekly_total_metrics = collections.OrderedDict()
+    weekly_totals_closed = collections.OrderedDict()
+    for project in ertProjects:
+        ws = workBook[project]
+        for row in ws.iter_rows():
+            rowList = []
+            for cell in row:
+                if cell.row == 1:
+                    continue
+                rowList.append(cell.value)
+            if rowList:
+                weekly_total_metrics[project + '#' + rowList[1]] = '#'.join(str(v) for v in rowList[2:])
+                weekly_totals_closed[project + '#' + rowList[1] + '#closed'] = rowList[6]
+    if weekly_metric_type == "weekly_totals":
+        result = weekly_total_metrics
+    elif weekly_metric_type == "weekly_closed_totals":
+        result = weekly_totals_closed
+    return result
+
+
+def update_closed_weekly_total_pivot_tables(workBook, closed_weekly_pivots_worksheet):
+    latest_weekly_totals_closed = collections.OrderedDict()
+    for project in ertProjects:
+        ws = workBook[project]
+        row = ws.max_row
+        latest_row = []
+        for col in range(ws.min_column, ws.max_column + 1):
+            latest_row.append((ws.cell(row=row, column=col).value))
+        latest_weekly_totals_closed[project + '#' + latest_row[1] + '#closed'] = latest_row[6]
+    project, rundate, status = latest_weekly_totals_closed.keys()[0].split('#')
+    total = 0
+    closed_counts = []
+    for project in ertProjects:
+        key = latest_weekly_totals_closed[project + '#' + rundate + '#closed']
+        closed_tickets_for_project = latest_weekly_totals_closed[key]
+        closed_tickets_for_project = int(closed_tickets_for_project)
+        closed_counts.append(closed_tickets_for_project)
+    closed_counts = [rundate] + closed_counts
+    max_row = closed_weekly_pivots_worksheet.max_row
+
+    for row in range(2, max_row + 1):
+        old_rundate = closed_weekly_pivots_worksheet.cell(row=row, column=1).value
+        if(old_rundate == currentDate):
+            for col in range(1, closed_weekly_pivots_worksheet + 1):
+                closed_weekly_pivots_worksheet.cell(row=max_row + 1, column=col, value=closed_counts[col])
+            return
+
+    for col in range(1, closed_weekly_pivots_worksheet + 1):
+        closed_weekly_pivots_worksheet.cell(row=max_row + 1, column=col, value=closed_counts[col])
+
+
+
+def create_closed_weekly_totals_pivot_tables(workBook, closed_weekly_pivots_worksheet):
+    weekly_closed_total_metrics = get_pivot_metrics('weekly_closed_totals')
+    keys = weekly_closed_total_metrics.keys()
+    rundatesSet = set()
+    rundates = list()
+    for key in keys:
+        project, rundate, status = key.split('#')
+        if rundate not in rundatesSet:
+            rundatesSet.add(rundate)
+            rundates.append(rundate)
+
+    header_row = ['run_date']  + ertProjects
+    closed_weekly_pivots_worksheet.append(header_row)
+    for date in rundates:
+        row = [date]
+        for project in ertProjects:
+            key = project + '#' + date + '#' + 'closed'
+            total_closed_for_date_for_project = weekly_closed_total_metrics[key]
+            row.append(total_closed_for_date_for_project)
+        closed_weekly_pivots_worksheet.append(row)
+
+
+
+def create_or_update_closed_weekly_total_charts(excelFileName, currentDate):
+    (weekly_total_pivots_sheet, weekly_total_charts_sheet) = ('Pivot-WeeklyTotals', 'Charts-WeeklyTotals')
+    (closed_weekly_total_pivots_sheet, closed_weekly_total_charts_sheet) = (
+    'Pivot-Weekly-Closed-Totals', 'Charts-Weekly-Closed-Charts')
+
+    workBook = load_workbook(excelFileName)
+    sheets = workBook.get_sheet_names()
+    if not (closed_weekly_total_pivots_sheet in sheets and closed_weekly_total_charts_sheet in sheets):
+        print "Creating Sheet {}".format(closed_weekly_total_pivots_sheet)
+        closed_weekly_pivots_worksheet = workBook.create_sheet(closed_weekly_total_pivots_sheet, 2)
+        closed_weekly_pivots_worksheet.sheet_properties.tabColor = "1072BA"
+        print "Creating Sheet {}".format(closed_weekly_total_charts_sheet)
+        closed_weekly_charts_worksheet = workBook.create_sheet(closed_weekly_total_charts_sheet, 2)
+        closed_weekly_charts_worksheet.sheet_properties.tabColor = "1072BA"
+        create_closed_weekly_totals_pivot_tables(workBook, closed_weekly_pivots_worksheet)
+    else:
+        closed_weekly_pivots_worksheet = workBook.get_sheet_by_name(closed_weekly_total_pivots_sheet)
+        closed_weekly_charts_worksheet = workBook.get_sheet_by_name(closed_weekly_total_charts_sheet)
+        update_weekly_total_pivot_tables(workBook, closed_weekly_pivots_worksheet)
+
+    chart1 = BarChart()
+    chart1.height = 12
+    chart1.width = 30
+    chart1.style = 10
+    chart1.title = "Weekly Total - All Tickets"
+    chart1.y_axis.title = 'Total'
+    chart1.x_axis.title = 'Run Date'
+    data = Reference(closed_weekly_pivots_worksheet, min_col=2, min_row=1,
+                     max_row=closed_weekly_pivots_worksheet.max_row, max_col=closed_weekly_pivots_worksheet.max_column)
+    cats = Reference(closed_weekly_pivots_worksheet, min_col=1, min_row=2,
+                     max_row=closed_weekly_pivots_worksheet.max_row)
+    chart1.add_data(data, titles_from_data=True)
+    chart1.set_categories(cats)
+    chart1.shape = 4
+    # chart1.series[0].trendline = Trendline()
+    # chart1.series[0].trendline.trendlineType = 'linear'
+    # chart1.dataLabels = DataLabelList()
+    # chart1.dataLabels.showVal = True
+
+    closed_weekly_charts_worksheet.add_chart(chart1, "A1")
+
+    chart2 = BarChart()
+    chart2.height = 12
+    chart2.width = 30
+    chart2.style = 10
+    chart2.title = "Weekly Total - All Tickets"
+    chart2.y_axis.title = 'Total'
+    chart2.x_axis.title = 'Run Date'
+    data = Reference(closed_weekly_pivots_worksheet, min_col=3, min_row=1,
+                     max_row=closed_weekly_pivots_worksheet.max_row, max_col=3)
+    cats = Reference(closed_weekly_pivots_worksheet, min_col=1, min_row=2,
+                     max_row=closed_weekly_pivots_worksheet.max_row)
+    chart2.add_data(data, titles_from_data=True)
+    chart2.set_categories(cats)
+    chart2.shape = 4
+    # chart1.series[0].trendline = Trendline()
+    # chart1.series[0].trendline.trendlineType = 'linear'
+    # chart1.dataLabels = DataLabelList()
+    # chart1.dataLabels.showVal = True
+
+    closed_weekly_charts_worksheet.add_chart(chart2, "A20")
+
 
 def extract_data_from_old_file_and_insert_into_new_file():
     for filename in os.listdir(CURRENT_DIRECTORY):
@@ -226,7 +364,6 @@ def update_weekly_total_pivot_tables(workBook, pivots_worksheet):
 
 def create_or_update_weekly_total_charts(excelFileName, currentDate):
     (weekly_total_pivots_sheet, weekly_total_charts_sheet) = ('Pivot-WeeklyTotals', 'Charts-WeeklyTotals')
-    chart_name = "WeeklyTotals"
     workBook = load_workbook(excelFileName)
     sheets = workBook.get_sheet_names()
     if not (weekly_total_pivots_sheet in sheets and weekly_total_charts_sheet in sheets):
@@ -296,7 +433,7 @@ def create_or_update_weekly_total_charts(excelFileName, currentDate):
     # s1.smooth = True # Make the line smooth
 
     charts_worksheet.add_chart(c1, "A30")
-    workBook.save(filename=excelFileName)
+    #workBook.save(filename=excelFileName)
 
 
 if __name__ == '__main__':
@@ -476,7 +613,8 @@ if __name__ == '__main__':
             status = string.capwords(status)
             query = query.replace('__PROJECTNAME__', project)
             query = query.replace('__CURRENTDATE__', currentDate_YYYY_MM_DD)
-            queryCount = jira_api_obj.get_response_from_jira(query)
+            response = jira_api_obj.get_response_from_jira(query)
+            queryCount = response['total']
             # time.sleep(10)
             row.append(queryCount)
             print status, queryCount
@@ -561,5 +699,6 @@ if __name__ == '__main__':
         workBook.remove_sheet(std)
     workBook.save(filename=excelFileName)
     create_or_update_weekly_total_charts(excelFileName, currentDate)
-
+    create_or_update_closed_weekly_total_charts(excelFileName, currentDate)
+    workBook.save(filename=excelFileName)
     print "Task Completed"
