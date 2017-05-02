@@ -19,6 +19,8 @@ if __name__ == "__main__":
         sys.exit(0)
 
     output_dir = os.path.join(CURRENT_DIRECTORY, 'output')
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     out_put_file_name = os.path.join(output_dir, config.get('OUTPUT', 'output_file_name'))
     if os.path.exists(out_put_file_name):
         try:
