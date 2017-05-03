@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import time
 import datetime
@@ -37,14 +38,21 @@ if __name__ == "__main__":
     if not os.path.exists(out_put_file_name):
         workbook_manager.create_empty_workbook(out_put_file_name)
         # Extract data from manually created workbook, if file exists
-        old_workbook_file_name = config.get('BUG_TRACKER', 'manual_created_workbook')
-        old_workbook_file_name = os.path.join(CURRENT_DIRECTORY, old_workbook_file_name)
-        if os.path.exists(old_workbook_file_name):
-            workbook_manager.extract_data_from_old_file_and_insert_into_new_file(
-                old_workbook_file_name, out_put_file_name
-            )
+        old_workbook_file_name = None
+        for filename in os.listdir(CURRENT_DIRECTORY):
+            match = re.match('(From.*?.xlsm)', filename, re.I)
+            if match:
+                old_workbook_file_name = match.group(0)
+        if old_workbook_file_name:
+            old_workbook_file_name = os.path.join(CURRENT_DIRECTORY, old_workbook_file_name)
+            if os.path.exists(old_workbook_file_name):
+                workbook_manager.extract_data_from_old_file_and_insert_into_new_file(
+                    old_workbook_file_name, out_put_file_name
+                )
+            else:
+                print "{} File Not exists".format(old_workbook_file_name)
         else:
-            print "{} File Not exists".format(old_workbook_file_name)
+            print "Manually created workbook not exists in current directory"
     jira_api = JiraAPIHandler(config)
     workbook_manager.populate_latest_metrics_from_jira_for_date(program_run_date, jira_api, out_put_file_name)
     metrics = Constants.METRICS
