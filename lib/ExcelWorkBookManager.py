@@ -171,19 +171,22 @@ class ExcelWorkBookManager(object):
     def is_workbook_already_has_data_for_current_week(self, workbook, run_date_str):
         ert_projects = self.get_project_names()
         project_worksheet = workbook[ert_projects[0]]
-        last_run_week = project_worksheet.cell(
-            row=project_worksheet.max_row, column=project_worksheet.min_column
-        ).value
-        last_run_date = project_worksheet.cell(
-            row=project_worksheet.max_row, column=project_worksheet.min_column + 1
-        ).value
-        last_run_date = last_run_date.strftime("%m/%d/%Y")
-        script_executed_for_current_week = (project_worksheet.max_row > 1 and (last_run_date == run_date_str))
-        '''
-        script_executed_for_current_week = (
-        project_worksheet.max_row > 1 and (last_run_week == run_week) or (last_run_date==run_date_str)
-            )
-        '''
+        if project_worksheet.max_row == 1:
+            script_executed_for_current_week = False
+        else:
+            last_run_week = project_worksheet.cell(
+                row=project_worksheet.max_row, column=project_worksheet.min_column
+            ).value
+            last_run_date = project_worksheet.cell(
+                row=project_worksheet.max_row, column=project_worksheet.min_column + 1
+            ).value
+            last_run_date = last_run_date.strftime("%m/%d/%Y")
+            script_executed_for_current_week = (last_run_date == run_date_str)
+            '''
+            script_executed_for_current_week = (
+            project_worksheet.max_row > 1 and (last_run_week == run_week) or (last_run_date==run_date_str)
+                )
+            '''
         return script_executed_for_current_week
 
     def populate_latest_metrics_from_jira_for_date(self, program_run_date, jira_api, out_put_file_name):
