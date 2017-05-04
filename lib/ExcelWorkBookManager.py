@@ -731,7 +731,7 @@ class ExcelWorkBookManager(object):
     def draw_charts_for_metrics_at_project_level(self, chart_manager, chart_type):
         data_sheet = chart_manager.data_sheet
         ert_projects = self.get_project_names()
-        cell_index = 25
+        cell_index = 30
 
         for index, project in enumerate(ert_projects):
             chart_properties = dict()
@@ -746,7 +746,7 @@ class ExcelWorkBookManager(object):
             chart_properties['trendline'] = True
             chart_properties['data_labels'] = True
             chart_properties['cell'] = 'A' + str(cell_index)
-            cell_index += 25
+            cell_index += 30
             if chart_type == "linechart":
                 chart_manager.draw_linechart(chart_properties)
             elif chart_type == "barchart":
