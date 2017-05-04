@@ -523,7 +523,6 @@ class ExcelWorkBookManager(object):
         weekly_total_max_row = self.get_maximum_row(pivots_worksheet, 5)
         previous_week_total = pivots_worksheet.cell(row=weekly_total_max_row - 1, column=6).value
         change_in_growth_for_current_week = total_tickets_count - previous_week_total
-        print self.script_executed_for_current_week
         if self.script_executed_for_current_week:
             # update weekly growth ##
             print "updating the weekly growth all tickets pivot metrics for {}".format(run_date_str)
@@ -608,7 +607,6 @@ class ExcelWorkBookManager(object):
             weekly_changes.append(weekly_change_for_project)
         weekly_changes = [run_date] + weekly_changes
         max_row = pivots_worksheet.max_row
-        print self.script_executed_for_current_week
         if self.script_executed_for_current_week:
             pass
         else:
@@ -711,6 +709,7 @@ class ExcelWorkBookManager(object):
             barchart_properties['data_labels'] = False
             barchart_properties['cell'] = 'A2'
             chart_manager.draw_barchart(barchart_properties)
+            self.draw_charts_for_metrics_at_project_level(chart_manager, "barchart")
         elif (metric_name == Constants.CLOSED_WEEKLY_CHANGE)\
                 or (metric_name == Constants.IN_PROGRESS_WEEKLY_CHANGE)\
                 or (metric_name == Constants.NEW_WEEKLY_CHANGE):
@@ -727,3 +726,28 @@ class ExcelWorkBookManager(object):
             linechart_properties['data_labels'] = False
             linechart_properties['cell'] = 'A2'
             chart_manager.draw_linechart(linechart_properties)
+            self.draw_charts_for_metrics_at_project_level(chart_manager, "linechart")
+
+    def draw_charts_for_metrics_at_project_level(self, chart_manager, chart_type):
+        data_sheet = chart_manager.data_sheet
+        ert_projects = self.get_project_names()
+        cell_index = 25
+
+        for index, project in enumerate(ert_projects):
+            chart_properties = dict()
+            chart_properties['data_min_column'] = index + 2
+            chart_properties['data_min_row'] = 1
+            chart_properties['data_max_column'] = index + 2
+            chart_properties['data_max_row'] = data_sheet.max_row
+            chart_properties['cats_min_column'] = 1
+            chart_properties['cats_min_row'] = 2
+            chart_properties['cats_max_column'] = chart_manager.data_sheet.max_column
+            chart_properties['cats_max_row'] = chart_manager.data_sheet.max_row
+            chart_properties['trendline'] = True
+            chart_properties['data_labels'] = True
+            chart_properties['cell'] = 'A' + str(cell_index)
+            cell_index += 25
+            if chart_type == "linechart":
+                chart_manager.draw_linechart(chart_properties)
+            elif chart_type == "barchart":
+                chart_manager.draw_barchart(chart_properties)
