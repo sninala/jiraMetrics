@@ -11,13 +11,13 @@ class ChartManager(object):
 
     def draw_barchart(self, chart_properties):
         print " creating Bar Chart"
-        chart1 = BarChart()
-        chart1.height = 12
-        chart1.width = 30
-        chart1.style = 10
-        chart1.title = "Weekly Total - All Tickets"
-        chart1.y_axis.title = 'Total'
-        chart1.x_axis.title = 'Run Date'
+        chart = BarChart()
+        chart.height = 12
+        chart.width = 30
+        chart.style = 10
+        chart.title = chart_properties['title']
+        #chart.y_axis.title = 'Total'
+        #chart.x_axis.title = 'Run Date'
 
         data = Reference(
             self.data_sheet, min_col=chart_properties['data_min_column'],
@@ -29,26 +29,27 @@ class ChartManager(object):
             min_col=chart_properties['cats_min_column'],
             min_row=chart_properties['cats_min_row'],
             max_row=chart_properties['cats_max_row'])
-        chart1.add_data(data, titles_from_data=True)
-        chart1.set_categories(cats)
-        chart1.shape = 4
+        chart.add_data(data, titles_from_data=True)
+        chart.set_categories(cats)
+        chart.shape = 4
         if chart_properties['trendline']:
-            chart1.series[0].trendline = Trendline()
-            chart1.series[0].trendline.trendlineType = 'linear'
+            chart.series[0].trendline = Trendline()
+            chart.series[0].trendline.trendlineType = 'linear'
         if chart_properties['data_labels']:
-            chart1.dataLabels = DataLabelList()
-            chart1.dataLabels.showVal = True
-        self.charts_sheet.add_chart(chart1, chart_properties['cell'])
+            chart.dataLabels = DataLabelList()
+            chart.dataLabels.showVal = True
+        self.charts_sheet.add_chart(chart, chart_properties['cell'])
 
     def draw_linechart(self, chart_properties):
         print "Creating line chart"
-        c1 = LineChart()
-        c1.height = 12
-        c1.width = 30
-        c1.title = "Weekly Growth"
-        c1.style = 12
-        c1.y_axis.title = 'Growth'
-        c1.x_axis.title = 'Run Date'
+        chart = LineChart()
+        chart.height = 12
+        chart.width = 30
+        chart.title = chart_properties['title']
+        chart.style = 12
+        chart.x_axis.tickLblPos = "low"
+        #chart.y_axis.title = 'Growth'
+        #chart.x_axis.title = 'Run Date'
         data = Reference(
             self.data_sheet, min_col=chart_properties['data_min_column'],
             min_row=chart_properties['data_min_row'],
@@ -60,10 +61,10 @@ class ChartManager(object):
             min_row=chart_properties['cats_min_row'],
             max_row=chart_properties['cats_max_row'])
 
-        c1.add_data(data, titles_from_data=True)
-        c1.set_categories(cats)
+        chart.add_data(data, titles_from_data=True)
+        chart.set_categories(cats)
         # Style the lines
-        s1 = c1.series[0]
+        s1 = chart.series[0]
         s1.marker.symbol = "circle"
         s1.marker.graphicalProperties.solidFill = "360AD2"  # Marker filling
         s1.marker.graphicalProperties.line.solidFill = "360AD2"
@@ -73,4 +74,4 @@ class ChartManager(object):
             s1.trendline = Trendline()
             s1.trendline.trendlineType = 'linear'
         # s1.smooth = True # Make the line smooth
-        self.charts_sheet.add_chart(c1, chart_properties['cell'])
+        self.charts_sheet.add_chart(chart, chart_properties['cell'])

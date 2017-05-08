@@ -19,6 +19,7 @@ class ExcelWorkBookManager(object):
         workbook = Workbook()
         ws = workbook.active
         ws.title = Constants.ROLLUP_SHEET_TITLE
+        ws.sheet_properties.tabColor = Constants.ROLLUP_SHEET_COLOR
         # setting Headers in excel Sheets ###
         for header in Constants.ROLLUP_SHEET_HEADERS:
             header_properties = Constants.ROLLUP_SHEET_HEADER_PROPERTIES[header]
@@ -35,11 +36,13 @@ class ExcelWorkBookManager(object):
                     ws[chr(j) + Constants.ROLLUP_HEADER_ROWS] = sub_header[i]
         ws.freeze_panes = Constants.ROLLUP_FREEZE_PANE_CELL
         ert_projects = self.get_project_names()
-        project_sheet_header = Constants.PROJECT_SHEET_HEADER
+
         for project in ert_projects:
+            project_sheet_header = Constants.PROJECT_SHEET_PROPERTIES[project]['SHEET_HEADER']
             project_worksheet = workbook.create_sheet(project)
             project_worksheet.append(project_sheet_header)
-            project_worksheet.freeze_panes = Constants.PROJECT_SHEET_FREEZE_PANE_CELL
+            project_worksheet.freeze_panes = Constants.PROJECT_SHEET_PROPERTIES[project]['SHEET_FREEZE_PANE_CELL']
+            project_worksheet.sheet_properties.tabColor = Constants.PROJECT_SHEET_PROPERTIES[project]['SHEET_COLOR']
         print "Workbook created"
         print "Applying Styles to workbook"
         header_font = Font(name='Calibri', size=12, bold=True)
@@ -357,10 +360,11 @@ class ExcelWorkBookManager(object):
         sheets = workbook.get_sheet_names()
         pivot_sheet_name = Constants.METRICS[metric_name]['pivot_sheet_name']
         pivot_sheet_position = Constants.METRICS[metric_name]['pivot_sheet_position']
+        pivot_sheet_color = Constants.METRICS[metric_name]['pivot_sheet_color']
         if not (pivot_sheet_name in sheets):
             print "Creating Sheet {}".format(pivot_sheet_name)
             pivots_worksheet = workbook.create_sheet(pivot_sheet_name, pivot_sheet_position)
-            pivots_worksheet.sheet_properties.tabColor = "1072BA"
+            pivots_worksheet.sheet_properties.tabColor = pivot_sheet_color
             self.create_pivot_tables_for(metric_name, pivots_worksheet, workbook)
         else:
             pivots_worksheet = workbook.get_sheet_by_name(pivot_sheet_name)
@@ -648,10 +652,11 @@ class ExcelWorkBookManager(object):
             pivots_worksheet = workbook.get_sheet_by_name(metrics[metric_name]['pivot_sheet_name'])
             charts_sheet_name = metrics[metric_name]['charts_sheet_name']
             charts_sheet_position = metrics[metric_name]['charts_sheet_position']
+            charts_sheet_color = metrics[metric_name]['charts_sheet_color']
             if not (charts_sheet_name in sheets):
                 print "Creating Sheet {}".format(charts_sheet_name)
                 charts_worksheet = workbook.create_sheet(charts_sheet_name, charts_sheet_position)
-                charts_worksheet.sheet_properties.tabColor = "1072BA"
+                charts_worksheet.sheet_properties.tabColor = charts_sheet_color
             else:
                 charts_worksheet = workbook.get_sheet_by_name(charts_sheet_name)
             chart_manager = ChartManager(pivots_worksheet, charts_worksheet)
@@ -665,6 +670,7 @@ class ExcelWorkBookManager(object):
             weekly_total_value_column_number = 6
             weekly_total_max_row = self.get_maximum_row(chart_manager.data_sheet, 5)
             barchart_properties = dict()
+            barchart_properties['title'] = Constants.METRICS[metric_name]['chart_weekly_total_title']
             barchart_properties['data_min_column'] = weekly_total_value_column_number
             barchart_properties['data_min_row'] = 1
             barchart_properties['data_max_column'] = weekly_total_value_column_number
@@ -681,6 +687,7 @@ class ExcelWorkBookManager(object):
             growth_change_value_column_number = 2
             weekly_growth_max_row = self.get_maximum_row(chart_manager.data_sheet, 1)
             linechart_properties = dict()
+            linechart_properties['title'] = Constants.METRICS[metric_name]['chart_weekly_growth_title']
             linechart_properties['data_min_column'] = growth_change_value_column_number
             linechart_properties['data_min_row'] = 1
             linechart_properties['data_max_column'] = growth_change_value_column_number
@@ -696,7 +703,9 @@ class ExcelWorkBookManager(object):
         elif (metric_name == Constants.CLOSED_WEEKLY_TOTALS)\
                 or (metric_name == Constants.IN_PROGRESS_WEEKLY_TOTALS)\
                 or (metric_name == Constants.NEW_WEEKLY_TOTALS):
+            title = Constants.METRICS[metric_name]['chart_weekly_total_title']
             barchart_properties = dict()
+            barchart_properties['title'] = title + ' - All'
             barchart_properties['data_min_column'] = 2
             barchart_properties['data_min_row'] = 1
             barchart_properties['data_max_column'] = chart_manager.data_sheet.max_column
@@ -709,11 +718,13 @@ class ExcelWorkBookManager(object):
             barchart_properties['data_labels'] = False
             barchart_properties['cell'] = 'A2'
             chart_manager.draw_barchart(barchart_properties)
-            self.draw_charts_for_metrics_at_project_level(chart_manager, "barchart")
+            self.draw_charts_for_metrics_at_project_level(chart_manager, title, "barchart")
         elif (metric_name == Constants.CLOSED_WEEKLY_CHANGE)\
                 or (metric_name == Constants.IN_PROGRESS_WEEKLY_CHANGE)\
                 or (metric_name == Constants.NEW_WEEKLY_CHANGE):
+            title = Constants.METRICS[metric_name]['chart_weekly_change_title']
             linechart_properties = dict()
+            linechart_properties['title'] = title
             linechart_properties['data_min_column'] = 2
             linechart_properties['data_min_row'] = 1
             linechart_properties['data_max_column'] = chart_manager.data_sheet.max_column
@@ -726,15 +737,16 @@ class ExcelWorkBookManager(object):
             linechart_properties['data_labels'] = False
             linechart_properties['cell'] = 'A2'
             chart_manager.draw_linechart(linechart_properties)
-            self.draw_charts_for_metrics_at_project_level(chart_manager, "linechart")
+            self.draw_charts_for_metrics_at_project_level(chart_manager, title, "linechart")
 
-    def draw_charts_for_metrics_at_project_level(self, chart_manager, chart_type):
+    def draw_charts_for_metrics_at_project_level(self, chart_manager, title, chart_type):
         data_sheet = chart_manager.data_sheet
         ert_projects = self.get_project_names()
         cell_index = 30
 
         for index, project in enumerate(ert_projects):
             chart_properties = dict()
+            chart_properties['title'] = title + " - " + project
             chart_properties['data_min_column'] = index + 2
             chart_properties['data_min_row'] = 1
             chart_properties['data_max_column'] = index + 2
