@@ -16,7 +16,6 @@ class JiraAPIHandler(object):
                                 auth=HTTPBasicAuth(self.username, self.password))
         if response.status_code == 200:
             response_json = response.json()
-            # writeResponseToFileSystem(project, status, response_json)
             return response_json
         else:
-            raise Exception("Unable get response from Jira")
+            raise Exception("Unable get response from Jira - {}".format(response.reason))

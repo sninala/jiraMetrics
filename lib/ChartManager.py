@@ -1,3 +1,4 @@
+from Constants import Constants
 from openpyxl.chart.trendline import Trendline
 from openpyxl.chart.label import DataLabelList
 from openpyxl.chart import BarChart, LineChart, Series, Reference
@@ -55,23 +56,32 @@ class ChartManager(object):
             min_row=chart_properties['data_min_row'],
             max_row=chart_properties['data_max_row'],
             max_col=chart_properties['data_max_column'])
-        cats = Reference(
-            self.data_sheet,
-            min_col=chart_properties['cats_min_column'],
-            min_row=chart_properties['cats_min_row'],
-            max_row=chart_properties['cats_max_row'])
 
         chart.add_data(data, titles_from_data=True)
-        chart.set_categories(cats)
-        # Style the lines
-        s1 = chart.series[0]
-        s1.marker.symbol = "circle"
-        s1.marker.graphicalProperties.solidFill = "360AD2"  # Marker filling
-        s1.marker.graphicalProperties.line.solidFill = "360AD2"
-        s1.graphicalProperties.line.solidFill = "360AD2"
-        s1.graphicalProperties.line.width = 28568  # width in EMUs
-        if chart_properties['trendline']:
-            s1.trendline = Trendline()
-            s1.trendline.trendlineType = 'linear'
-        # s1.smooth = True # Make the line smooth
+        projects = chart_properties['projects']
+        series = chart.series
+        for index, current_series in enumerate(series):
+            if projects:
+                project = projects[index]
+                project_properites = self.get_linechart_properties(project)
+                current_series.marker.symbol = project_properites["MARKER_SYMBOL"]
+                current_series.marker.size = 7
+                if project_properites["MARKER_SYMBOL"] in ("triangle", "diamond", "circle"):
+                    current_series.marker.graphicalProperties.solidFill = project_properites["COLOR"] # Marker filling
+                current_series.marker.graphicalProperties.line.solidFill = project_properites["COLOR"]
+                current_series.graphicalProperties.line.solidFill = project_properites["COLOR"]
+            else:
+                current_series.marker.symbol = "diamond"
+                current_series.marker.graphicalProperties.solidFill = "360AD2"  # Marker filling
+                current_series.marker.graphicalProperties.line.solidFill = "360AD2"
+                current_series.graphicalProperties.line.solidFill = "360AD2"
+            current_series.graphicalProperties.line.width = 28568
+            if chart_properties['trendline']:
+                current_series.trendline = Trendline()
+                current_series.trendline.trendlineType = 'linear'
+
         self.charts_sheet.add_chart(chart, chart_properties['cell'])
+
+    def get_linechart_properties(self, project):
+        line_chart_properties = Constants.CHART_PROPERTIES['LINE_CHART']
+        return line_chart_properties[project]

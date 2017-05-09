@@ -67,6 +67,37 @@ class Constants(object):
         }
 
     }
+
+    CHART_PROPERTIES = {
+        "LINE_CHART" : {
+            "EXPRT": {
+                "MARKER_SYMBOL": "triangle",
+                "COLOR": "9BBB59"
+            },
+            "EPR": {
+                "MARKER_SYMBOL": "square",
+                "COLOR": "C0504D"
+            },
+            "MPORT": {
+                "MARKER_SYMBOL": "x",
+                "COLOR": "8064A2"
+            },
+            "RCVS": {
+                "MARKER_SYMBOL": "star",
+                "COLOR": "4BACC6"
+            },
+            "SPOR": {
+                "MARKER_SYMBOL": "circle",
+                "COLOR": "F79646"
+            },
+            "CRQST": {
+                "MARKER_SYMBOL": "diamond",
+                "COLOR": "4F81BD"
+            }
+        }
+    }
+
+
     STATUS_NEW = "New"
     STATUS_INPROGRESS = "InProgress"
     STATUS_CLOSED = "closed"
@@ -158,3 +189,4 @@ class Constants(object):
 
 if __name__ == '__main__':
     print Constants.CLOSED_ELAPSED
+    print Constants.CHART_PROPERTIES['LINE_CHART']
