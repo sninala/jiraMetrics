@@ -94,6 +94,26 @@ class Constants(object):
                 "MARKER_SYMBOL": "diamond",
                 "COLOR": "4F81BD"
             }
+        },
+        "BAR_CHART": {
+            "EXPRT": {
+                "COLOR": "9BBB59"
+            },
+            "EPR": {
+                "COLOR": "C0504D"
+            },
+            "MPORT": {
+                "COLOR": "8064A2"
+            },
+            "RCVS": {
+                "COLOR": "4BACC6"
+            },
+            "SPOR": {
+                "COLOR": "F79646"
+            },
+            "CRQST": {
+                "COLOR": "4F81BD"
+            }
         }
     }
 

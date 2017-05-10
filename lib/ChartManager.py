@@ -33,9 +33,20 @@ class ChartManager(object):
         chart.add_data(data, titles_from_data=True)
         chart.set_categories(cats)
         chart.shape = 4
-        if chart_properties['trendline']:
-            chart.series[0].trendline = Trendline()
-            chart.series[0].trendline.trendlineType = 'linear'
+        projects = chart_properties['projects']
+        series = chart.series
+        for index, current_series in enumerate(series):
+            if projects:
+                project = projects[index]
+                project_properties = self.get_barchart_properties_for(project)
+                project_color = project_properties["COLOR"]
+                current_series.graphicalProperties.solidFill = project_color
+            else:
+                current_series.graphicalProperties.solidFill = "1381BD"
+
+            if chart_properties['trendline']:
+                current_series.trendline = Trendline()
+                current_series.trendline.trendlineType = 'linear'
         if chart_properties['data_labels']:
             chart.dataLabels = DataLabelList()
             chart.dataLabels.showVal = True
@@ -56,25 +67,31 @@ class ChartManager(object):
             min_row=chart_properties['data_min_row'],
             max_row=chart_properties['data_max_row'],
             max_col=chart_properties['data_max_column'])
+        cats = Reference(
+            self.data_sheet,
+            min_col=chart_properties['cats_min_column'],
+            min_row=chart_properties['cats_min_row'],
+            max_row=chart_properties['cats_max_row'])
 
         chart.add_data(data, titles_from_data=True)
+        chart.set_categories(cats)
         projects = chart_properties['projects']
         series = chart.series
         for index, current_series in enumerate(series):
             if projects:
                 project = projects[index]
-                project_properites = self.get_linechart_properties(project)
-                current_series.marker.symbol = project_properites["MARKER_SYMBOL"]
+                project_properties = self.get_linechart_properties(project)
+                current_series.marker.symbol = project_properties["MARKER_SYMBOL"]
                 current_series.marker.size = 7
-                if project_properites["MARKER_SYMBOL"] in ("triangle", "diamond", "circle"):
-                    current_series.marker.graphicalProperties.solidFill = project_properites["COLOR"] # Marker filling
-                current_series.marker.graphicalProperties.line.solidFill = project_properites["COLOR"]
-                current_series.graphicalProperties.line.solidFill = project_properites["COLOR"]
+                if project_properties["MARKER_SYMBOL"] in ("triangle", "diamond", "circle"):
+                    current_series.marker.graphicalProperties.solidFill = project_properties["COLOR"] # Marker filling
+                current_series.marker.graphicalProperties.line.solidFill = project_properties["COLOR"]
+                current_series.graphicalProperties.line.solidFill = project_properties["COLOR"]
             else:
                 current_series.marker.symbol = "diamond"
-                current_series.marker.graphicalProperties.solidFill = "360AD2"  # Marker filling
-                current_series.marker.graphicalProperties.line.solidFill = "360AD2"
-                current_series.graphicalProperties.line.solidFill = "360AD2"
+                current_series.marker.graphicalProperties.solidFill = "1381BD"  # Marker filling
+                current_series.marker.graphicalProperties.line.solidFill = "1381BD"
+                current_series.graphicalProperties.line.solidFill = "1381BD"
             current_series.graphicalProperties.line.width = 28568
             if chart_properties['trendline']:
                 current_series.trendline = Trendline()
@@ -82,6 +99,12 @@ class ChartManager(object):
 
         self.charts_sheet.add_chart(chart, chart_properties['cell'])
 
-    def get_linechart_properties(self, project):
-        line_chart_properties = Constants.CHART_PROPERTIES['LINE_CHART']
-        return line_chart_properties[project]
+    @staticmethod
+    def get_linechart_properties(project):
+        linechart_properties = Constants.CHART_PROPERTIES['LINE_CHART']
+        return linechart_properties[project]
+
+    @staticmethod
+    def get_barchart_properties_for(project):
+        barchart_properties = Constants.CHART_PROPERTIES['BAR_CHART']
+        return barchart_properties[project]
