@@ -10,10 +10,13 @@ class JiraAPIHandler(object):
         self.username = config.get('BUG_TRACKER', 'username')
         self.password = self.config.get('BUG_TRACKER', 'password')
 
-    def get_response_from_jira(self, query):
+    def get_response_from_jira(self, query, start_at=None):
         query_string = urllib.quote_plus(query)
-        response = requests.get(self.base_url + query_string + '&maxResults=1',
-                                auth=HTTPBasicAuth(self.username, self.password))
+        if start_at:
+            request_url = self.base_url + query_string + '&maxResults=-1&startAt='+start_at
+        else:
+            request_url = self.base_url + query_string + '&maxResults=1'
+        response = requests.get(request_url, auth=HTTPBasicAuth(self.username, self.password))
         if response.status_code == 200:
             response_json = response.json()
             return response_json

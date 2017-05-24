@@ -1,3 +1,5 @@
+import ast
+import numpy
 import string
 import datetime
 import collections
@@ -13,6 +15,9 @@ class ExcelWorkBookManager(object):
     def __init__(self, config):
         self.config = config
         self.script_executed_for_current_week = False
+        self.closed_elapsed_stats_current_week = None
+        self.closed_elapsed_grouping_per_project = None
+        self.projects_to_calculate_closed_elapsed = None
 
     def create_empty_workbook(self, output_file_name):
         print "Creating empty workbook as {}".format(output_file_name)
@@ -43,6 +48,15 @@ class ExcelWorkBookManager(object):
             project_worksheet.append(project_sheet_header)
             project_worksheet.freeze_panes = Constants.PROJECT_SHEET_PROPERTIES[project]['SHEET_FREEZE_PANE_CELL']
             project_worksheet.sheet_properties.tabColor = Constants.PROJECT_SHEET_PROPERTIES[project]['SHEET_COLOR']
+
+        closed_elapsed_rollup = workbook.create_sheet(Constants.CLOSED_ELAPSED_ROLLUP_SHEET_TITLE, 0)
+        closed_elapsed_rollup_header = Constants.CLOSED_ELAPSED_ROLLUP_SHEET_HEADERS
+        closed_elapsed_rollup.append(closed_elapsed_rollup_header)
+        closed_elapsed_rollup.freeze_panes = Constants.ROLLUP_FREEZE_PANE_CELL
+        closed_elapsed_rollup.sheet_properties.tabColor = \
+            Constants.METRICS[Constants.CLOSED_ELAPSED]['pivot_sheet_color']
+
+
         print "Workbook created"
         print "Applying Styles to workbook"
         header_font = Font(name='Calibri', size=12, bold=True)
@@ -114,7 +128,7 @@ class ExcelWorkBookManager(object):
         old_workbook_rollup = old_workbook[Constants.ROLLUP_SHEET_TITLE]
         old_workbook_project_sheet_data = collections.OrderedDict()
         old_workbook_rollup_sheet_data = collections.OrderedDict()
-        print "Extracting Data from {} workbook and loading into {} workbook".format(
+        print "Extracting Rollup data from {} workbook and loading into {} workbook".format(
             old_workbook_file_name, out_put_file_name
         )
         for row in old_workbook_rollup.iter_rows():
@@ -176,7 +190,48 @@ class ExcelWorkBookManager(object):
                         int_values.append(value)
                     row = [project1, date1] + int_values
                     latest_workbook_rollup.append(row)
+        print "Extracting ClosedElapsed data from {} workbook and loading into {} workbook".format(
+            old_workbook_file_name, out_put_file_name
+        )
+        old_workbook_closed_elapsed_rollup = old_workbook['Pivot0-ClosedElapsed']
+        latest_workbook_closed_elapsed_rollup = latest_workbook[Constants.CLOSED_ELAPSED_ROLLUP_SHEET_TITLE]
+        old_workbook_closed_elapsed_sheet_data = collections.OrderedDict()
 
+        for row in old_workbook_closed_elapsed_rollup.iter_rows():
+            if row[0].row == 1:
+                continue
+            project = row[0].value
+            run_date = row[1].value
+            avg_days_elapsed = row[2].value
+            max_days_elapsed = row[3].value
+            min_days_elapsed = row[4].value
+            median_days_elapsed = row[5].value
+            if project and run_date and avg_days_elapsed and max_days_elapsed and min_days_elapsed and median_days_elapsed:
+                old_workbook_closed_elapsed_sheet_data[project + '##' + str(run_date)] = "##".join(
+                    [str(avg_days_elapsed), str(max_days_elapsed), str(min_days_elapsed), str(median_days_elapsed)])
+        dates = set()
+        keys = old_workbook_closed_elapsed_sheet_data.keys()
+        for key in keys:
+            project, date = key.split("##")
+            if ExcelWorkBookManager.is_date(date):
+                dates.add(date)
+        dates = sorted(dates, key=lambda x: datetime.datetime.strptime(x, '%Y-%m-%d %H:%M:%S'))
+        project_names = self.get_project_names()
+        for date in dates:
+            for project in project_names:
+                key = project + '##' + date
+                if key in old_workbook_closed_elapsed_sheet_data.keys():
+                    date1 = datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
+                    values = old_workbook_closed_elapsed_sheet_data[key].split('##')
+                    numbers = []
+                    for value in values:
+                        try:
+                            value = ast.literal_eval(value)
+                        except ValueError:
+                            value = str(value)
+                        numbers.append(value)
+                    row = [project, date1] + numbers
+                    latest_workbook_closed_elapsed_rollup.append(row)
         latest_workbook.save(filename=out_put_file_name)
         print "Data Extraction Completed"
 
@@ -301,13 +356,83 @@ class ExcelWorkBookManager(object):
         else:
             for row in rollup_sheet_rows:
                 rollup_sheet.append(row)
+        print "Getting latest Closed Elapsed Metrics From Jira"
+        closed_elapsed_stats = collections.OrderedDict()
+        closed_elapsed_grouping_per_project = collections.OrderedDict()
+        closed_elapsed_rollup_sheet = workbook[Constants.CLOSED_ELAPSED_ROLLUP_SHEET_TITLE]
+        closed_elapsed_rollup_sheet_max_row = closed_elapsed_rollup_sheet.max_row
+        if self.script_executed_for_current_week:
+            closed_elapsed_rollup_sheet_max_row = (closed_elapsed_rollup_sheet_max_row - len(ert_projects))
+        closed_elapsed_rollup_rows = []
+        projects_to_calculate_closed_elapsed = list()
+        s = set()
+        for project in ert_projects:
+            total_items = 1
+            response_count = 0
+            current_project_closed_elapsed_stats = []
+            closed_elapsed_grouping_per_project[project] = {}
+            while response_count < total_items:
+                query = "project in (__PROJECTNAME__) AND status in (Resolved, Closed) AND createdDate > 2015-01-01 AND createdDate<= __CURRENTDATE__"
+                query = query.replace('__PROJECTNAME__', project)
+                query = query.replace('__CURRENTDATE__', run_date_yyyy_mm_dd)
+                response = jira_api.get_response_from_jira(query, str(response_count))
+                total_items = response['total']
+                response_count = response_count + len(response['issues'])
+                print project, response_count, total_items
+                issues = response['issues']
+                for issue in issues:
+                    closed_elapsed_value = int(issue['fields']['customfield_10950'])
+                    if closed_elapsed_value and (project not in s):
+                        s.add(project)
+                        projects_to_calculate_closed_elapsed.append(project)
+                    current_project_closed_elapsed_stats.append(closed_elapsed_value)
+                    if closed_elapsed_value in closed_elapsed_grouping_per_project[project]:
+                        closed_elapsed_grouping_per_project[project][closed_elapsed_value] = \
+                            closed_elapsed_grouping_per_project[project][closed_elapsed_value] + 1
+                    else:
+                        closed_elapsed_grouping_per_project[project][closed_elapsed_value] = 1
+
+            current_project_metrics = self.get_closed_elapsed_metrics(current_project_closed_elapsed_stats)
+            row = [latest_workbook_project_name_mapper[project], program_run_date] + current_project_metrics
+            closed_elapsed_stats[project] = row
+            closed_elapsed_rollup_rows.append(row)
+        if self.script_executed_for_current_week:
+            index = 1
+            for row in closed_elapsed_rollup_rows:
+                for col in range(closed_elapsed_rollup_sheet.min_column, closed_elapsed_rollup_sheet.max_column + 1):
+                    closed_elapsed_rollup_sheet.cell(
+                        row=closed_elapsed_rollup_sheet_max_row + index,
+                        column=col, value=closed_elapsed_rollup_rows[index - 1][col - 1]
+                    )
+                index += 1
+        else:
+            for row in closed_elapsed_rollup_rows:
+                closed_elapsed_rollup_sheet.append(row)
+        self.set_closed_elapsed_metrics_for_current_week(closed_elapsed_stats, closed_elapsed_grouping_per_project)
+        self.set_projects_to_calculate_closed_elapsed(projects_to_calculate_closed_elapsed)
+        self.apply_styles_to_the_workbook(workbook)
         workbook.save(filename=out_put_file_name)
+        '''
         old_weekly_totals_sheet = 'WeeklyTotals'
         if old_weekly_totals_sheet in workbook.get_sheet_names():
             std = workbook.get_sheet_by_name(old_weekly_totals_sheet)
             workbook.remove_sheet(std)
-        self.apply_styles_to_the_workbook(workbook)
+        
         workbook.save(filename=out_put_file_name)
+        '''
+    def set_closed_elapsed_metrics_for_current_week(
+            self, closed_elapsed_stats_current_week, closed_elapsed_grouping_per_project):
+        self.closed_elapsed_stats_current_week = closed_elapsed_stats_current_week
+        self.closed_elapsed_grouping_per_project = closed_elapsed_grouping_per_project
+
+    def get_closed_elapsed_metrics_for_current_week(self):
+        return [self.closed_elapsed_stats_current_week, self.closed_elapsed_grouping_per_project]
+
+    def set_projects_to_calculate_closed_elapsed(self, projects):
+        self.projects_to_calculate_closed_elapsed = projects
+
+    def get_projects_to_calculate_closed_elapsed(self):
+        return self.projects_to_calculate_closed_elapsed
 
     def get_pivot_metrics_from_work_book(self, workbook, weekly_metric_type):
         ert_projects = self.get_project_codes()
@@ -343,7 +468,8 @@ class ExcelWorkBookManager(object):
         return result
 
     def apply_styles_to_the_workbook(self, workbook):
-        sheets = [Constants.ROLLUP_SHEET_TITLE] + self.get_project_codes()
+        sheets = [Constants.ROLLUP_SHEET_TITLE] + [Constants.CLOSED_ELAPSED_ROLLUP_SHEET_TITLE]
+        sheets = sheets + self.get_project_codes()
         side = Side(border_style='thin', color="FF000000")
         for sheet in sheets:
             ws = workbook[sheet]
@@ -355,6 +481,8 @@ class ExcelWorkBookManager(object):
                     cell = ws.cell(row=row, column=column)
                     if column == 2:
                         cell.number_format = 'M/D/YYYY'
+                    if sheet == Constants.CLOSED_ELAPSED_ROLLUP_SHEET_TITLE and column in (3, 4, 5, 6):
+                        cell.number_format = '0'
                     border = Border(
                         left=cell.border.left,
                         right=cell.border.right,
@@ -374,13 +502,13 @@ class ExcelWorkBookManager(object):
             print "Creating Sheet {}".format(pivot_sheet_name)
             pivots_worksheet = workbook.create_sheet(pivot_sheet_name, pivot_sheet_position)
             pivots_worksheet.sheet_properties.tabColor = pivot_sheet_color
-            self.create_pivot_tables_for(metric_name, pivots_worksheet, workbook)
+            self.create_pivot_tables_for(metric_name, pivots_worksheet, workbook, program_run_date)
         else:
             pivots_worksheet = workbook.get_sheet_by_name(pivot_sheet_name)
             self.update_pivot_tables_for(metric_name, pivots_worksheet, workbook, program_run_date)
         workbook.save(filename=out_put_file_name)
 
-    def create_pivot_tables_for(self, metric_name, pivots_worksheet, workbook):
+    def create_pivot_tables_for(self, metric_name, pivots_worksheet, workbook, program_run_date):
         if metric_name == Constants.ALL_TICKETS_WEEKLY_TOTALS:
             self.create_all_tickets_weekly_total_pivot_tables(workbook, pivots_worksheet)
         elif metric_name == Constants.CLOSED_WEEKLY_TOTALS:
@@ -395,6 +523,8 @@ class ExcelWorkBookManager(object):
             self.create_new_weekly_total_pivot_tables(workbook, pivots_worksheet)
         elif metric_name == Constants.NEW_WEEKLY_CHANGE:
             self.create_new_weekly_change_pivot_tables(workbook, pivots_worksheet)
+        elif metric_name == Constants.CLOSED_ELAPSED:
+            self.create_closed_elapsed_pivot_tables(workbook, pivots_worksheet, program_run_date)
 
     def update_pivot_tables_for(self, metric_name, pivots_worksheet, workbook, program_run_date):
         if metric_name == Constants.ALL_TICKETS_WEEKLY_TOTALS:
@@ -411,6 +541,8 @@ class ExcelWorkBookManager(object):
             self.update_new_weekly_total_pivot_tables(workbook, pivots_worksheet)
         elif metric_name == Constants.NEW_WEEKLY_CHANGE:
             self.update_new_weekly_change_pivot_tables(workbook, pivots_worksheet)
+        elif metric_name == Constants.CLOSED_ELAPSED:
+            self.update_closed_elapsed_pivot_tables(workbook, pivots_worksheet, program_run_date)
 
     def create_all_tickets_weekly_total_pivot_tables(self, workbook, pivots_worksheet):
         weekly_total_metrics = self.get_pivot_metrics_from_work_book(workbook, Constants.ALL_TICKETS_WEEKLY_TOTALS)
@@ -437,6 +569,132 @@ class ExcelWorkBookManager(object):
             pivots_worksheet.cell(row=row, column=col).value = data_row[0]
             pivots_worksheet.cell(row=row, column=col + 1).value = data_row[1]
             row = row + 1
+
+    def populate_project_specific_metrics_from_closed_elapsed_rollup(self, workbook, pivots_worksheet):
+        elapsed_rollup_sheet = workbook[Constants.CLOSED_ELAPSED_ROLLUP_SHEET_TITLE]
+        closed_elapsed_stats = collections.OrderedDict()
+        for row in elapsed_rollup_sheet.iter_rows():
+            if row[0].row == 1:
+                continue
+            project = row[0].value
+            run_date = row[1].value
+            avg_days_elapsed = row[2].value
+            max_days_elapsed = row[3].value
+            min_days_elapsed = row[4].value
+            median_days_elapsed = row[5].value
+            if project and run_date and avg_days_elapsed and max_days_elapsed and min_days_elapsed and median_days_elapsed:
+                closed_elapsed_stats[project + '##' + str(run_date)] = "##".join(
+                    [str(avg_days_elapsed), str(max_days_elapsed), str(min_days_elapsed), str(median_days_elapsed)])
+        dates = set()
+        keys = closed_elapsed_stats.keys()
+        for key in keys:
+            project, date = key.split("##")
+            if self.is_date(date):
+                dates.add(date)
+        dates = sorted(dates, key=lambda x: datetime.datetime.strptime(x, '%Y-%m-%d %H:%M:%S'))
+        project_names = self.get_project_names()
+        col = 6
+        for project in project_names:
+            project_rows = list()
+            for date in dates:
+                key = project + '##' + date
+                project, run_date = key.split('##')
+                if key in closed_elapsed_stats.keys():
+                    date1 = datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
+                    values = closed_elapsed_stats[key].split('##')
+                    project_row = [date1, float(values[0]), float(values[3]), int(values[1])]
+                    project_rows.append(project_row)
+            if project_rows:
+                row = 1
+                pivots_worksheet.cell(row=row, column=col, value="Project:")
+                pivots_worksheet.cell(row=row, column=col + 1, value=project)
+                row = row + 1
+                pivots_worksheet.cell(row=row, column=col, value="Run Date")
+                pivots_worksheet.cell(row=row, column=col + 1, value="Average")
+                pivots_worksheet.cell(row=row, column=col + 2, value="Median")
+                pivots_worksheet.cell(row=row, column=col + 3, value="Max")
+                row = row + 1
+                for data_row in project_rows:
+                    pivots_worksheet.cell(row=row, column=col, value=data_row[0])
+                    pivots_worksheet.cell(row=row, column=col).number_format = 'M/D/YYYY'
+                    pivots_worksheet.cell(row=row, column=col + 1, value=data_row[1])
+                    pivots_worksheet.cell(row=row, column=col + 1).number_format = '0'
+                    pivots_worksheet.cell(row=row, column=col+2, value=data_row[2])
+                    pivots_worksheet.cell(row=row, column=col + 2).number_format = '0'
+                    pivots_worksheet.cell(row=row, column=col+3, value=data_row[3])
+                    row = row + 1
+                col = col + 5
+
+    def populate_closed_elapsed_grouping_per_project(
+            self, workbook, pivots_worksheet, closed_elapsed_grouping_per_project):
+        days_elapsed = list()
+        ert_projects = self.get_projects_to_calculate_closed_elapsed()
+        project_name_map = self.get_project_code_mapping_details_for_latest_workbook()
+        project_names = list()
+        col = 6
+        for project in ert_projects:
+            col = col + 5
+            project_names.append(project_name_map[project])
+            days_elapsed_per_project = closed_elapsed_grouping_per_project[project].keys()
+            days_elapsed.extend(days_elapsed_per_project)
+        days_elapsed = set(days_elapsed)
+        days_elapsed = sorted(days_elapsed)
+        row = 1
+        pivots_worksheet.cell(row=row, column=col, value="Number of Jira Tickets Per Elapsed Day")
+        row = row + 1
+        pivots_worksheet.cell(row=row, column=col, value="Days Elapsed")
+        for i in range(len(project_names)):
+            pivots_worksheet.cell(row=row, column=col + i + 1, value=project_names[i])
+        pivots_worksheet.cell(row=row, column=col + len(project_names)+1, value="Total")
+        row = row + 1
+
+        for days_elapsed_value in days_elapsed:
+            pivots_worksheet.cell(row=row, column=col, value=days_elapsed_value)
+            col_index = 1
+            total = 0
+            for project in ert_projects:
+                grouping_for_project = None
+                if days_elapsed_value in closed_elapsed_grouping_per_project[project]:
+                    grouping_for_project = closed_elapsed_grouping_per_project[project][days_elapsed_value]
+                    total = total + grouping_for_project
+                pivots_worksheet.cell(row=row, column=col + col_index, value=grouping_for_project)
+                col_index = col_index + 1
+            pivots_worksheet.cell(row=row, column=col + col_index, value=total)
+            row = row + 1
+
+    def create_closed_elapsed_pivot_tables(self, workbook, pivots_worksheet, program_run_date):
+        closed_elapsed_stats_current_week = self.get_closed_elapsed_metrics_for_current_week()[0]
+        closed_elapsed_grouping_per_project = self.get_closed_elapsed_metrics_for_current_week()[1]
+        run_date_str = program_run_date.strftime("%m/%d/%Y")
+        ert_projects = self.get_projects_to_calculate_closed_elapsed()
+        row = 1
+        col = 1
+        pivots_worksheet.cell(row=row, column=col, value="Run Date")
+        pivots_worksheet.cell(row=row, column=col+1, value=run_date_str)
+        row = row + 1
+        pivots_worksheet.cell(row=row, column=col, value="Project")
+        pivots_worksheet.cell(row=row, column=col + 1, value="Average")
+        pivots_worksheet.cell(row=row, column=col + 2, value="Max")
+        pivots_worksheet.cell(row=row, column=col + 3, value="Median")
+        row = row + 1
+        for project in ert_projects:
+            metrics_for_project = closed_elapsed_stats_current_week[project]
+            pivot_row = [metrics_for_project[0], metrics_for_project[2], metrics_for_project[3], metrics_for_project[5]]
+            if not pivot_row[1] and not pivot_row[2] and not pivot_row[3]:
+                pass
+            else:
+                pivots_worksheet.cell(row=row, column=col, value=pivot_row[0])
+                pivots_worksheet.cell(row=row, column=col + 1, value=pivot_row[1])
+                pivots_worksheet.cell(row=row, column=col + 1).number_format = '0'
+                pivots_worksheet.cell(row=row, column=col + 2, value=pivot_row[2])
+                pivots_worksheet.cell(row=row, column=col + 3, value=pivot_row[3])
+                pivots_worksheet.cell(row=row, column=col + 3).number_format = '0'
+                row = row + 1
+        self.populate_project_specific_metrics_from_closed_elapsed_rollup(workbook, pivots_worksheet)
+        self.populate_closed_elapsed_grouping_per_project(workbook, pivots_worksheet, closed_elapsed_grouping_per_project)
+
+    def update_closed_elapsed_pivot_tables(self, workbook, pivots_worksheet, program_run_date):
+        self.create_closed_elapsed_pivot_tables(workbook, pivots_worksheet, program_run_date)
 
     def create_weekly_total_pivot_table_for(self, status, workbook, pivots_worksheet):
         metric_name = None
@@ -548,13 +806,15 @@ class ExcelWorkBookManager(object):
             pivots_worksheet.cell(row=weekly_total_max_row, column=5, value=run_date)
             pivots_worksheet.cell(row=weekly_total_max_row, column=6, value=total_tickets_count)
         else:
+            print "updating the weekly growth all tickets pivot metrics for {}".format(run_date_str)
             pivots_worksheet.cell(row=weekly_growth_max_row + 1, column=1, value=run_date_str)
             pivots_worksheet.cell(row=weekly_growth_max_row + 1, column=2, value=change_in_growth_for_current_week)
-
+            print "updating the weekly total pivot metrics for {}".format(run_date_str)
             pivots_worksheet.cell(row=weekly_total_max_row + 1, column=5, value=run_date_str)
             pivots_worksheet.cell(row=weekly_total_max_row + 1, column=6, value=total_tickets_count)
 
     def update_weekly_total_pivots_sheet_for_current_week(self, status, workbook, pivots_worksheet):
+        print "updating pivot tables for metric {}".format(status)
         latest_weekly_totals = collections.OrderedDict()
         ert_projects = self.get_project_codes()
         status_column = 0
@@ -656,6 +916,16 @@ class ExcelWorkBookManager(object):
                 break
         return max_row
 
+    @staticmethod
+    def get_closed_elapsed_metrics(array_list):
+        median = numpy.median(numpy.array(array_list))
+        avg = numpy.average(array_list)
+        # avg = int(round(avg))
+        array_list1 = sorted(array_list)
+        max_days_elapsed = array_list1[len(array_list1) - 1]
+        min_days_elapsed = array_list1[0]
+        return [avg, max_days_elapsed, min_days_elapsed, median]
+
     def update_charts_for(self, metrics, out_put_file_name):
         workbook = load_workbook(out_put_file_name)
         sheets = workbook.get_sheet_names()
@@ -682,6 +952,7 @@ class ExcelWorkBookManager(object):
             weekly_total_max_row = self.get_maximum_row(chart_manager.data_sheet, 5)
             barchart_properties = dict()
             barchart_properties['title'] = Constants.METRICS[metric_name]['chart_weekly_total_title']
+            barchart_properties['logarithmic_y_axis'] = False
             barchart_properties['data_min_column'] = weekly_total_value_column_number
             barchart_properties['data_min_row'] = 1
             barchart_properties['data_max_column'] = weekly_total_value_column_number
@@ -699,6 +970,7 @@ class ExcelWorkBookManager(object):
             growth_change_value_column_number = 2
             weekly_growth_max_row = self.get_maximum_row(chart_manager.data_sheet, 1)
             linechart_properties = dict()
+            linechart_properties['logarithmic_y_axis'] = False
             linechart_properties['title'] = Constants.METRICS[metric_name]['chart_weekly_growth_title']
             linechart_properties['data_min_column'] = growth_change_value_column_number
             linechart_properties['data_min_row'] = 1
@@ -719,6 +991,7 @@ class ExcelWorkBookManager(object):
             title = Constants.METRICS[metric_name]['chart_weekly_total_title']
             barchart_properties = dict()
             barchart_properties['title'] = title + ' - All'
+            barchart_properties['logarithmic_y_axis'] = False
             barchart_properties['data_min_column'] = 2
             barchart_properties['data_min_row'] = 1
             barchart_properties['data_max_column'] = chart_manager.data_sheet.max_column
@@ -739,6 +1012,7 @@ class ExcelWorkBookManager(object):
             title = Constants.METRICS[metric_name]['chart_weekly_change_title']
             linechart_properties = dict()
             linechart_properties['title'] = title
+            linechart_properties['logarithmic_y_axis'] = False
             linechart_properties['data_min_column'] = 2
             linechart_properties['data_min_row'] = 1
             linechart_properties['data_max_column'] = chart_manager.data_sheet.max_column
@@ -753,14 +1027,36 @@ class ExcelWorkBookManager(object):
             linechart_properties['projects'] = self.get_project_codes()
             chart_manager.draw_linechart(linechart_properties)
             self.draw_charts_for_metrics_at_project_level(chart_manager, title, "linechart")
+        elif metric_name == Constants.CLOSED_ELAPSED:
+            max_row = self.get_maximum_row(chart_manager.data_sheet, 1)
+            title = Constants.METRICS[metric_name]['chart_current_week_title']
+            linechart_properties = dict()
+            linechart_properties['title'] = title
+            linechart_properties['logarithmic_y_axis'] = True
+            linechart_properties['data_min_column'] = 2
+            linechart_properties['data_min_row'] = 2
+            linechart_properties['data_max_column'] = 4
+            linechart_properties['data_max_row'] = max_row
+            linechart_properties['cats_min_column'] = 1
+            linechart_properties['cats_min_row'] = 3
+            linechart_properties['cats_max_column'] = 4
+            linechart_properties['cats_max_row'] = max_row
+            linechart_properties['trendline'] = False
+            linechart_properties['data_labels'] = True
+            linechart_properties['cell'] = 'A2'
+            linechart_properties['projects'] = self.get_project_codes()
+            chart_manager.draw_linechart(linechart_properties)
+            self.draw_charts_for_closed_elapsed_metric_per_project(chart_manager, title, "linechart")
+            self.draw_charts_for_closed_elapsed_metric_per_elapsed_day(chart_manager, title, "barchart")
+
 
     def draw_charts_for_metrics_at_project_level(self, chart_manager, title, chart_type):
         data_sheet = chart_manager.data_sheet
         ert_projects = self.get_project_codes()
         cell_index = 30
-
         for index, project in enumerate(ert_projects):
             chart_properties = dict()
+            chart_properties['logarithmic_y_axis'] = False
             chart_properties['title'] = title + " - " + project
             chart_properties['data_min_column'] = index + 2
             chart_properties['data_min_row'] = 1
@@ -779,3 +1075,63 @@ class ExcelWorkBookManager(object):
                 chart_manager.draw_linechart(chart_properties)
             elif chart_type == "barchart":
                 chart_manager.draw_barchart(chart_properties)
+
+    def draw_charts_for_closed_elapsed_metric_per_project(self, chart_manager, title, chart_type):
+        data_sheet = chart_manager.data_sheet
+        ert_projects = self.get_projects_to_calculate_closed_elapsed()
+        cell_index = 30
+        col = 6
+        for project in ert_projects:
+            max_row = self.get_maximum_row(data_sheet, col)
+            chart_properties = dict()
+            chart_properties['logarithmic_y_axis'] = True
+            chart_properties['title'] = "Closed Elapsed for " + project
+            chart_properties['data_min_column'] = col + 1
+            chart_properties['data_min_row'] = 2
+            chart_properties['data_max_column'] = col + 3
+            chart_properties['data_max_row'] = max_row
+            chart_properties['cats_min_column'] = col
+            chart_properties['cats_min_row'] = 3
+            chart_properties['cats_max_column'] = col + 3
+            chart_properties['cats_max_row'] = max_row
+            chart_properties['trendline'] = True
+            chart_properties['data_labels'] = True
+            chart_properties['projects'] = self.get_project_codes()
+            chart_properties['cell'] = 'A' + str(cell_index)
+            cell_index += 30
+            if chart_type == "linechart":
+                chart_manager.draw_linechart(chart_properties)
+            col = col + 5
+
+    def draw_charts_for_closed_elapsed_metric_per_elapsed_day(self, chart_manager, title, chart_type):
+        data_sheet = chart_manager.data_sheet
+        ert_projects = self.get_projects_to_calculate_closed_elapsed()
+        col = 6
+        cell_index  = 30
+        for project in ert_projects:
+            col = col + 5
+            cell_index = cell_index + 30
+
+        print "column is {}".format(col)
+
+        max_row = self.get_maximum_row(data_sheet, col)
+        print "max_row is {}".format(max_row)
+        chart_properties = dict()
+        chart_properties['logarithmic_y_axis'] = True
+        chart_properties['title'] = "The Number of Jira Tickets per Elapsed Day "
+        chart_properties['data_min_column'] = col + 6
+        chart_properties['data_min_row'] = 2
+        chart_properties['data_max_column'] = col + 6
+        chart_properties['data_max_row'] = max_row
+        chart_properties['cats_min_column'] = col
+        chart_properties['cats_min_row'] = 3
+        chart_properties['cats_max_column'] = col + 6
+        chart_properties['cats_max_row'] = max_row
+        chart_properties['trendline'] = False
+        chart_properties['data_labels'] = False
+        chart_properties['stacked'] = True
+
+        chart_properties['projects'] = []
+        chart_properties['cell'] = 'A' + str(cell_index)
+        if chart_type == "barchart":
+            chart_manager.draw_barchart(chart_properties)

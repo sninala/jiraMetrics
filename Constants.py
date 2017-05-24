@@ -32,6 +32,11 @@ class Constants(object):
         }
     }
     ROLLUP_FREEZE_PANE_CELL = "A3"
+    CLOSED_ELAPSED_ROLLUP_SHEET_TITLE = "ClosedElapsed_Rollup"
+    CLOSED_ELAPSED_ROLLUP_SHEET_HEADERS = ["Project", "Run Date", "Average of Days Elapsed",
+                                           "Max of Days Elapsed", "Min of Days Elapsed", "Median"]
+    CLOSED_ELAPSED_ROLLUP_FREEZE_PANE_CELL = "A2"
+
     CELL_RANGE = "CELL_RANGE"
     SUB_HEADER = "SUB_HEADER"
     PROJECT_SHEET_PROPERTIES = {
@@ -204,7 +209,8 @@ class Constants(object):
             "pivot_sheet_color": "FFFFFF",
             "charts_sheet_name": "Chart-ClosedElapsed",
             "charts_sheet_position": 14,
-            "charts_sheet_color": "F2F2F2"
+            "charts_sheet_color": "F2F2F2",
+            "chart_current_week_title": "Analysis of Days Elapsed, Per Project, for Current Week"
         }
 
 if __name__ == '__main__':
