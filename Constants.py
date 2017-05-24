@@ -36,6 +36,7 @@ class Constants(object):
     CLOSED_ELAPSED_ROLLUP_SHEET_HEADERS = ["Project", "Run Date", "Average of Days Elapsed",
                                            "Max of Days Elapsed", "Min of Days Elapsed", "Median"]
     CLOSED_ELAPSED_ROLLUP_FREEZE_PANE_CELL = "A2"
+    CLOSED_ELAPSED_STATISTICS = ["Average", "Max", "Median"]
 
     CELL_RANGE = "CELL_RANGE"
     SUB_HEADER = "SUB_HEADER"
@@ -98,7 +99,20 @@ class Constants(object):
             "CRQST": {
                 "MARKER_SYMBOL": "diamond",
                 "COLOR": "4F81BD"
+            },
+            "Max": {
+                "MARKER_SYMBOL": "triangle",
+                "COLOR": "9BBB59"
+            },
+            "Average": {
+                "MARKER_SYMBOL": "diamond",
+                "COLOR": "4F81BD"
+            },
+            "Median": {
+                "MARKER_SYMBOL": "square",
+                "COLOR": "C0504D"
             }
+
         },
         "BAR_CHART": {
             "EXPRT": {

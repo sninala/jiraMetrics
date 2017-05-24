@@ -984,6 +984,7 @@ class ExcelWorkBookManager(object):
             linechart_properties['data_labels'] = False
             linechart_properties['cell'] = 'A30'
             linechart_properties['projects'] = []
+            linechart_properties['statistics'] = []
             chart_manager.draw_linechart(linechart_properties)
         elif (metric_name == Constants.CLOSED_WEEKLY_TOTALS)\
                 or (metric_name == Constants.IN_PROGRESS_WEEKLY_TOTALS)\
@@ -1025,6 +1026,7 @@ class ExcelWorkBookManager(object):
             linechart_properties['data_labels'] = False
             linechart_properties['cell'] = 'A2'
             linechart_properties['projects'] = self.get_project_codes()
+            linechart_properties['statistics'] = []
             chart_manager.draw_linechart(linechart_properties)
             self.draw_charts_for_metrics_at_project_level(chart_manager, title, "linechart")
         elif metric_name == Constants.CLOSED_ELAPSED:
@@ -1044,7 +1046,8 @@ class ExcelWorkBookManager(object):
             linechart_properties['trendline'] = False
             linechart_properties['data_labels'] = True
             linechart_properties['cell'] = 'A2'
-            linechart_properties['projects'] = self.get_project_codes()
+            linechart_properties['projects'] = []
+            linechart_properties['statistics'] = Constants.CLOSED_ELAPSED_STATISTICS
             chart_manager.draw_linechart(linechart_properties)
             self.draw_charts_for_closed_elapsed_metric_per_project(chart_manager, title, "linechart")
             self.draw_charts_for_closed_elapsed_metric_per_elapsed_day(chart_manager, title, "barchart")
@@ -1069,6 +1072,7 @@ class ExcelWorkBookManager(object):
             chart_properties['trendline'] = True
             chart_properties['data_labels'] = True
             chart_properties['projects'] = [project]
+            chart_properties['statistics'] = []
             chart_properties['cell'] = 'A' + str(cell_index)
             cell_index += 30
             if chart_type == "linechart":
@@ -1096,7 +1100,8 @@ class ExcelWorkBookManager(object):
             chart_properties['cats_max_row'] = max_row
             chart_properties['trendline'] = True
             chart_properties['data_labels'] = True
-            chart_properties['projects'] = self.get_project_codes()
+            chart_properties['projects'] = []
+            chart_properties['statistics']= ["Average", "Median", "Max"]
             chart_properties['cell'] = 'A' + str(cell_index)
             cell_index += 30
             if chart_type == "linechart":
@@ -1111,11 +1116,7 @@ class ExcelWorkBookManager(object):
         for project in ert_projects:
             col = col + 5
             cell_index = cell_index + 30
-
-        print "column is {}".format(col)
-
         max_row = self.get_maximum_row(data_sheet, col)
-        print "max_row is {}".format(max_row)
         chart_properties = dict()
         chart_properties['logarithmic_y_axis'] = True
         chart_properties['title'] = "The Number of Jira Tickets per Elapsed Day "

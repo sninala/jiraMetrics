@@ -11,14 +11,12 @@ class ChartManager(object):
         self.charts_sheet = charts_sheet
 
     def draw_barchart(self, chart_properties):
-        print " creating Bar Chart"
+        print "Creating Bar chart for {}".format(chart_properties['title'])
         chart = BarChart()
         chart.height = 12
         chart.width = 30
         chart.style = 10
         chart.title = chart_properties['title']
-        #chart.y_axis.title = 'Total'
-        #chart.x_axis.title = 'Run Date'
 
         data = Reference(
             self.data_sheet, min_col=chart_properties['data_min_column'],
@@ -82,6 +80,7 @@ class ChartManager(object):
         chart.add_data(data, titles_from_data=True)
         chart.set_categories(cats)
         projects = chart_properties['projects']
+        statistics = chart_properties['statistics']
         series = chart.series
         for index, current_series in enumerate(series):
             if projects:
@@ -93,6 +92,15 @@ class ChartManager(object):
                     current_series.marker.graphicalProperties.solidFill = project_properties["COLOR"] # Marker filling
                 current_series.marker.graphicalProperties.line.solidFill = project_properties["COLOR"]
                 current_series.graphicalProperties.line.solidFill = project_properties["COLOR"]
+            elif statistics:
+                statistic = statistics[index]
+                properties = self.get_linechart_properties(statistic)
+                current_series.marker.symbol = properties["MARKER_SYMBOL"]
+                current_series.marker.size = 7
+                if properties["MARKER_SYMBOL"] in ("triangle", "diamond", "circle"):
+                    current_series.marker.graphicalProperties.solidFill = properties["COLOR"]  # Marker filling
+                current_series.marker.graphicalProperties.line.solidFill = properties["COLOR"]
+                current_series.graphicalProperties.line.solidFill = properties["COLOR"]
             else:
                 current_series.marker.symbol = "diamond"
                 current_series.marker.graphicalProperties.solidFill = "1381BD"  # Marker filling
