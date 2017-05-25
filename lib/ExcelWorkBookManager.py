@@ -287,6 +287,8 @@ class ExcelWorkBookManager(object):
             if self.script_executed_for_current_week:
                 project_sheet_max_row = (project_sheet_max_row - 1)
             for status, query in jql_queries.iteritems():
+                if status == 'closedelapsed':
+                    continue
                 status = string.capwords(status)
                 query = query.replace('__PROJECTNAME__', project)
                 query = query.replace('__CURRENTDATE__', run_date_yyyy_mm_dd)
