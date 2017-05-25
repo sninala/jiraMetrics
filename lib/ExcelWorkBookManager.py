@@ -371,14 +371,14 @@ class ExcelWorkBookManager(object):
             response_count = 0
             current_project_closed_elapsed_stats = []
             closed_elapsed_grouping_per_project[project] = {}
+            query = self.config.get('JQL', 'ClosedElapsed')
+            query = query.replace('__PROJECTNAME__', project)
+            query = query.replace('__CURRENTDATE__', run_date_yyyy_mm_dd)
             while response_count < total_items:
-                query = "project in (__PROJECTNAME__) AND status in (Resolved, Closed) AND createdDate > 2015-01-01 AND createdDate<= __CURRENTDATE__"
-                query = query.replace('__PROJECTNAME__', project)
-                query = query.replace('__CURRENTDATE__', run_date_yyyy_mm_dd)
                 response = jira_api.get_response_from_jira(query, str(response_count))
                 total_items = response['total']
                 response_count = response_count + len(response['issues'])
-                print project, response_count, total_items
+                print "Extracted {} records out of {} for project {} from Jira".format(response_count, total_items, project)
                 issues = response['issues']
                 for issue in issues:
                     closed_elapsed_value = int(issue['fields']['customfield_10950'])
@@ -1098,7 +1098,7 @@ class ExcelWorkBookManager(object):
             chart_properties['cats_min_row'] = 3
             chart_properties['cats_max_column'] = col + 3
             chart_properties['cats_max_row'] = max_row
-            chart_properties['trendline'] = True
+            chart_properties['trendline'] = False
             chart_properties['data_labels'] = True
             chart_properties['projects'] = []
             chart_properties['statistics']= ["Average", "Median", "Max"]
@@ -1112,7 +1112,7 @@ class ExcelWorkBookManager(object):
         data_sheet = chart_manager.data_sheet
         ert_projects = self.get_projects_to_calculate_closed_elapsed()
         col = 6
-        cell_index  = 30
+        cell_index = 30
         for project in ert_projects:
             col = col + 5
             cell_index = cell_index + 30

@@ -113,6 +113,7 @@ class ChartManager(object):
         if chart_properties['data_labels']:
             chart.dataLabels = DataLabelList()
             chart.dataLabels.showVal = True
+            chart.dataLabels.position = "b"
 
         self.charts_sheet.add_chart(chart, chart_properties['cell'])
 
