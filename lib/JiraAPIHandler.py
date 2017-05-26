@@ -10,10 +10,10 @@ class JiraAPIHandler(object):
         self.username = config.get('BUG_TRACKER', 'username')
         self.password = self.config.get('BUG_TRACKER', 'password')
 
-    def get_response_from_jira(self, query, start_at=None):
+    def get_response_from_jira(self, query, start_at=None, fields=None):
         query_string = urllib.quote_plus(query)
-        if start_at:
-            request_url = self.base_url + query_string + '&maxResults=-1&startAt='+start_at
+        if start_at and fields:
+            request_url = self.base_url + query_string + '&maxResults=-1&startAt='+ start_at +'&fields='+fields
         else:
             request_url = self.base_url + query_string + '&maxResults=1'
         response = requests.get(request_url, auth=HTTPBasicAuth(self.username, self.password))

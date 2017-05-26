@@ -367,6 +367,7 @@ class ExcelWorkBookManager(object):
             closed_elapsed_rollup_sheet_max_row = (closed_elapsed_rollup_sheet_max_row - len(ert_projects))
         closed_elapsed_rollup_rows = []
         projects_to_calculate_closed_elapsed = list()
+        closed_elapsed_field_name = Constants.CLOSED_ELAPSED_FIELD_IN_JIRA_API_RESPONSE
         s = set()
         for project in ert_projects:
             total_items = 1
@@ -377,13 +378,13 @@ class ExcelWorkBookManager(object):
             query = query.replace('__PROJECTNAME__', project)
             query = query.replace('__CURRENTDATE__', run_date_yyyy_mm_dd)
             while response_count < total_items:
-                response = jira_api.get_response_from_jira(query, str(response_count))
+                response = jira_api.get_response_from_jira(query, str(response_count), closed_elapsed_field_name)
                 total_items = response['total']
                 response_count = response_count + len(response['issues'])
                 print "Extracted {} records out of {} for project {} from Jira".format(response_count, total_items, project)
                 issues = response['issues']
                 for issue in issues:
-                    closed_elapsed_value = int(issue['fields']['customfield_10950'])
+                    closed_elapsed_value = int(issue['fields'][closed_elapsed_field_name])
                     if closed_elapsed_value and (project not in s):
                         s.add(project)
                         projects_to_calculate_closed_elapsed.append(project)
