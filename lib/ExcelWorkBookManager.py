@@ -7,7 +7,7 @@ from Constants import Constants
 from dateutil.parser import parse
 from openpyxl import Workbook, load_workbook
 from ChartManager import ChartManager
-from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
+from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
 
 
 class ExcelWorkBookManager(object):
@@ -55,8 +55,6 @@ class ExcelWorkBookManager(object):
         closed_elapsed_rollup.freeze_panes = Constants.CLOSED_ELAPSED_ROLLUP_FREEZE_PANE_CELL
         closed_elapsed_rollup.sheet_properties.tabColor = \
             Constants.METRICS[Constants.CLOSED_ELAPSED]['pivot_sheet_color']
-
-
         print "Workbook created"
         print "Applying Styles to workbook"
         header_font = Font(name='Calibri', size=12, bold=True)
@@ -88,7 +86,7 @@ class ExcelWorkBookManager(object):
     def get_project_names(self):
         project_codes = self.get_project_codes()
         latest_project_names_map = self.get_project_code_mapping_details_for_latest_workbook()
-        project_names = [];
+        project_names = []
         for project in project_codes:
             project_name = latest_project_names_map[project]
             project_names.append(project_name)
@@ -206,7 +204,8 @@ class ExcelWorkBookManager(object):
             max_days_elapsed = row[3].value
             min_days_elapsed = row[4].value
             median_days_elapsed = row[5].value
-            if project and run_date and avg_days_elapsed and max_days_elapsed and min_days_elapsed and median_days_elapsed:
+            if project and run_date and avg_days_elapsed and max_days_elapsed \
+                    and min_days_elapsed and median_days_elapsed:
                 old_workbook_closed_elapsed_sheet_data[project + '##' + str(run_date)] = "##".join(
                     [str(avg_days_elapsed), str(max_days_elapsed), str(min_days_elapsed), str(median_days_elapsed)])
         dates = set()
@@ -241,19 +240,11 @@ class ExcelWorkBookManager(object):
         if project_worksheet.max_row == 1:
             script_executed_for_current_week = False
         else:
-            last_run_week = project_worksheet.cell(
-                row=project_worksheet.max_row, column=project_worksheet.min_column
-            ).value
             last_run_date = project_worksheet.cell(
                 row=project_worksheet.max_row, column=project_worksheet.min_column + 1
             ).value
             last_run_date = last_run_date.strftime("%m/%d/%Y")
             script_executed_for_current_week = (last_run_date == run_date_str)
-            '''
-            script_executed_for_current_week = (
-            project_worksheet.max_row > 1 and (last_run_week == run_week) or (last_run_date==run_date_str)
-                )
-            '''
         return script_executed_for_current_week
 
     def populate_latest_metrics_from_jira_for_date(self, program_run_date, jira_api, out_put_file_name):
@@ -381,7 +372,8 @@ class ExcelWorkBookManager(object):
                 response = jira_api.get_response_from_jira(query, str(response_count), closed_elapsed_field_name)
                 total_items = response['total']
                 response_count = response_count + len(response['issues'])
-                print "Extracted {} records out of {} for project {} from Jira".format(response_count, total_items, project)
+                print "Extracted {} records out of {} for project {} from Jira".format(
+                    response_count, total_items, project)
                 issues = response['issues']
                 for issue in issues:
                     closed_elapsed_value = int(issue['fields'][closed_elapsed_field_name])
@@ -585,7 +577,8 @@ class ExcelWorkBookManager(object):
             max_days_elapsed = row[3].value
             min_days_elapsed = row[4].value
             median_days_elapsed = row[5].value
-            if project and run_date and avg_days_elapsed and max_days_elapsed and min_days_elapsed and median_days_elapsed:
+            if project and run_date and avg_days_elapsed and max_days_elapsed \
+                    and min_days_elapsed and median_days_elapsed:
                 closed_elapsed_stats[project + '##' + str(run_date)] = "##".join(
                     [str(avg_days_elapsed), str(max_days_elapsed), str(min_days_elapsed), str(median_days_elapsed)])
         dates = set()
@@ -932,10 +925,9 @@ class ExcelWorkBookManager(object):
             linechart_properties['projects'] = []
             linechart_properties['statistics'] = Constants.CLOSED_ELAPSED_STATISTICS
             chart_manager.draw_linechart(linechart_properties)
-            self.draw_charts_for_closed_elapsed_metric_per_project(chart_manager, title, "linechart")
-            self.draw_charts_for_closed_elapsed_metric_per_elapsed_day(chart_manager, title, "barchart")
-            self.draw_charts_for_closed_elapsed_metric_per_elapsed_day_per_project(chart_manager, title, "barchart")
-
+            self.draw_charts_for_closed_elapsed_metric_per_project(chart_manager, "linechart")
+            self.draw_charts_for_closed_elapsed_metric_per_elapsed_day(chart_manager, "barchart")
+            self.draw_charts_for_closed_elapsed_metric_per_elapsed_day_per_project(chart_manager, "barchart")
 
     def draw_charts_for_metrics_at_project_level(self, chart_manager, title, chart_type):
         data_sheet = chart_manager.data_sheet
@@ -964,7 +956,8 @@ class ExcelWorkBookManager(object):
             elif chart_type == "barchart":
                 chart_manager.draw_barchart(chart_properties)
 
-    def draw_charts_for_closed_elapsed_metric_per_project(self, chart_manager, title, chart_type):
+    def draw_charts_for_closed_elapsed_metric_per_project(self, chart_manager, chart_type):
+        project_name_mapper = self.get_project_code_mapping_details_for_latest_workbook()
         data_sheet = chart_manager.data_sheet
         ert_projects = self.get_projects_to_calculate_closed_elapsed()
         cell_index = 30
@@ -973,7 +966,7 @@ class ExcelWorkBookManager(object):
             max_row = self.get_maximum_row(data_sheet, col)
             chart_properties = dict()
             chart_properties['logarithmic_y_axis'] = True
-            chart_properties['title'] = "Closed Elapsed for " + project
+            chart_properties['title'] = "Closed Elapsed for " + project_name_mapper[project]
             chart_properties['data_min_column'] = col + 1
             chart_properties['data_min_row'] = 2
             chart_properties['data_max_column'] = col + 3
@@ -985,14 +978,14 @@ class ExcelWorkBookManager(object):
             chart_properties['trendline'] = False
             chart_properties['data_labels'] = True
             chart_properties['projects'] = []
-            chart_properties['statistics']= ["Average", "Median", "Max"]
+            chart_properties['statistics'] = ["Average", "Median", "Max"]
             chart_properties['cell'] = 'A' + str(cell_index)
             cell_index += 30
             if chart_type == "linechart":
                 chart_manager.draw_linechart(chart_properties)
             col = col + 5
 
-    def draw_charts_for_closed_elapsed_metric_per_elapsed_day(self, chart_manager, title, chart_type):
+    def draw_charts_for_closed_elapsed_metric_per_elapsed_day(self, chart_manager, chart_type):
         data_sheet = chart_manager.data_sheet
         ert_projects = self.get_projects_to_calculate_closed_elapsed()
         col = 6
@@ -1021,7 +1014,7 @@ class ExcelWorkBookManager(object):
         if chart_type == "barchart":
             chart_manager.draw_barchart(chart_properties)
 
-    def draw_charts_for_closed_elapsed_metric_per_elapsed_day_per_project(self, chart_manager, title, chart_type):
+    def draw_charts_for_closed_elapsed_metric_per_elapsed_day_per_project(self, chart_manager, chart_type):
         data_sheet = chart_manager.data_sheet
         ert_projects = self.get_projects_to_calculate_closed_elapsed()
         col = 6
@@ -1050,4 +1043,3 @@ class ExcelWorkBookManager(object):
         chart_properties['cell'] = 'A' + str(cell_index)
         if chart_type == "barchart":
             chart_manager.draw_barchart(chart_properties)
-
