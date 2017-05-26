@@ -61,5 +61,4 @@ if __name__ == "__main__":
 
     workbook_manager.update_charts_for(metrics, out_put_file_name)
 
-    # workbook_manager.draw_charts_for_weekly_total_all_tickets(weekly_total_for_all_tickets_pivot, out_put_file_name)
     print "Task Completed"
