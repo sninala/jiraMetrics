@@ -6,9 +6,10 @@ from openpyxl.chart import BarChart, LineChart, Series, Reference
 
 class ChartManager(object):
 
-    def __init__(self, data_sheet, charts_sheet):
+    def __init__(self, data_sheet, charts_sheet, project_properties):
         self.data_sheet = data_sheet
         self.charts_sheet = charts_sheet
+        self.project_properties = project_properties
 
     def draw_barchart(self, chart_properties):
         print "Creating Bar chart for {}".format(chart_properties['title'])
@@ -40,7 +41,7 @@ class ChartManager(object):
         for index, current_series in enumerate(series):
             if projects:
                 project = projects[index]
-                project_properties = self.get_barchart_properties_for(project)
+                project_properties = self.project_properties.get_project_properties_for(project)
                 project_color = project_properties["COLOR"]
                 current_series.graphicalProperties.solidFill = project_color
             else:
@@ -85,7 +86,7 @@ class ChartManager(object):
         for index, current_series in enumerate(series):
             if projects:
                 project = projects[index]
-                project_properties = self.get_linechart_properties(project)
+                project_properties = self.project_properties.get_project_properties_for(project)
                 current_series.marker.symbol = project_properties["MARKER_SYMBOL"]
                 current_series.marker.size = 7
                 if project_properties["MARKER_SYMBOL"] in ("triangle", "diamond", "circle"):
@@ -94,7 +95,7 @@ class ChartManager(object):
                 current_series.graphicalProperties.line.solidFill = project_properties["COLOR"]
             elif statistics:
                 statistic = statistics[index]
-                properties = self.get_linechart_properties(statistic)
+                properties = self.get_chart_properties_for(statistic)
                 current_series.marker.symbol = properties["MARKER_SYMBOL"]
                 current_series.marker.size = 7
                 if properties["MARKER_SYMBOL"] in ("triangle", "diamond", "circle"):
@@ -117,12 +118,8 @@ class ChartManager(object):
 
         self.charts_sheet.add_chart(chart, chart_properties['cell'])
 
-    @staticmethod
-    def get_linechart_properties(project):
-        linechart_properties = Constants.CHART_PROPERTIES['LINE_CHART']
-        return linechart_properties[project]
+    def get_chart_properties_for(self, metric):
+        chart_props = Constants.METRIC_PROPERTIES
+        return chart_props[metric]
 
-    @staticmethod
-    def get_barchart_properties_for(project):
-        barchart_properties = Constants.CHART_PROPERTIES['BAR_CHART']
-        return barchart_properties[project]
+

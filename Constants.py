@@ -42,98 +42,22 @@ class Constants(object):
     CELL_RANGE = "CELL_RANGE"
     SUB_HEADER = "SUB_HEADER"
     PROJECT_SHEET_PROPERTIES = {
-        "EXPRT" : {
-            "SHEET_HEADER" : ["Week#", "Run Date", "New", "diff", "In Progress", "diff", "Closed", "diff"],
-            "SHEET_FREEZE_PANE_CELL" : "A2",
-            "SHEET_COLOR" : "9BBB59"
-        },
-        "EPR": {
-            "SHEET_HEADER": ["Week#", "Run Date", "New", "diff", "In Progress", "diff", "Closed", "diff"],
-            "SHEET_FREEZE_PANE_CELL": "A2",
-            "SHEET_COLOR": "C0504D"
-        },
-        "MPORT": {
-            "SHEET_HEADER": ["Week#", "Run Date", "New", "diff", "In Progress", "diff", "Closed", "diff"],
-            "SHEET_FREEZE_PANE_CELL": "A2",
-            "SHEET_COLOR": "8064A2"
-        },
-        "RCVS": {
-            "SHEET_HEADER": ["Week#", "Run Date", "New", "diff", "In Progress", "diff", "Closed", "diff"],
-            "SHEET_FREEZE_PANE_CELL": "A2",
-            "SHEET_COLOR": "4BACC6"
-        },
-        "SPOR": {
-            "SHEET_HEADER": ["Week#", "Run Date", "New", "diff", "In Progress", "diff", "Closed", "diff"],
-            "SHEET_FREEZE_PANE_CELL": "A2",
-            "SHEET_COLOR": "F79646"
-        },
-        "CRQST": {
-            "SHEET_HEADER": ["Week#", "Run Date", "New", "diff", "In Progress", "diff", "Closed", "diff"],
-            "SHEET_FREEZE_PANE_CELL": "A2",
-            "SHEET_COLOR": "4F81BD"
-        }
-
+        "SHEET_HEADER": ["Week#", "Run Date", "New", "diff", "In Progress", "diff", "Closed", "diff"],
+        "SHEET_FREEZE_PANE_CELL": "A2"
     }
 
-    CHART_PROPERTIES = {
-        "LINE_CHART" : {
-            "EXPRT": {
-                "MARKER_SYMBOL": "triangle",
-                "COLOR": "9BBB59"
-            },
-            "EPR": {
-                "MARKER_SYMBOL": "square",
-                "COLOR": "C0504D"
-            },
-            "MPORT": {
-                "MARKER_SYMBOL": "x",
-                "COLOR": "8064A2"
-            },
-            "RCVS": {
-                "MARKER_SYMBOL": "star",
-                "COLOR": "4BACC6"
-            },
-            "SPOR": {
-                "MARKER_SYMBOL": "circle",
-                "COLOR": "F79646"
-            },
-            "CRQST": {
-                "MARKER_SYMBOL": "diamond",
-                "COLOR": "4F81BD"
-            },
-            "Max": {
-                "MARKER_SYMBOL": "triangle",
-                "COLOR": "9BBB59"
-            },
-            "Average": {
-                "MARKER_SYMBOL": "diamond",
-                "COLOR": "4F81BD"
-            },
-            "Median": {
-                "MARKER_SYMBOL": "square",
-                "COLOR": "C0504D"
-            }
-
+    METRIC_PROPERTIES ={
+        "Max": {
+            "MARKER_SYMBOL": "triangle",
+            "COLOR": "9BBB59"
         },
-        "BAR_CHART": {
-            "EXPRT": {
-                "COLOR": "9BBB59"
-            },
-            "EPR": {
-                "COLOR": "C0504D"
-            },
-            "MPORT": {
-                "COLOR": "8064A2"
-            },
-            "RCVS": {
-                "COLOR": "4BACC6"
-            },
-            "SPOR": {
-                "COLOR": "F79646"
-            },
-            "CRQST": {
-                "COLOR": "4F81BD"
-            }
+        "Average": {
+            "MARKER_SYMBOL": "diamond",
+            "COLOR": "4F81BD"
+        },
+        "Median": {
+            "MARKER_SYMBOL": "square",
+            "COLOR": "C0504D"
         }
     }
 

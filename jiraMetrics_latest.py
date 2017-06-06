@@ -7,13 +7,16 @@ from Constants import Constants
 from ConfigParser import SafeConfigParser
 from lib.JiraAPIHandler import JiraAPIHandler
 from lib.ExcelWorkBookManager import ExcelWorkBookManager
+from lib.ProjectProperties import ProjectProperties
 
 if __name__ == "__main__":
     CURRENT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
     config_file = os.path.join(CURRENT_DIRECTORY, 'config', 'jiraMetrics.ini')
     if os.path.exists(config_file):
         config = SafeConfigParser()
+        config.optionxform = str
         config.read(config_file)
+
     else:
         print config_file + " not found"
         time.sleep(5)
@@ -34,7 +37,11 @@ if __name__ == "__main__":
     days_to_subtract = config.get('BUG_TRACKER', 'day_difference')
     days_to_subtract = int(days_to_subtract) if days_to_subtract else 0
     program_run_date = today - datetime.timedelta(days=days_to_subtract)
-    workbook_manager = ExcelWorkBookManager(config)
+    project_properties = ProjectProperties(config)
+    project_properties.initialize_project_properties()
+    with open(config_file, 'wb') as configfile:
+        config.write(configfile)
+    workbook_manager = ExcelWorkBookManager(config, project_properties)
     if not os.path.exists(out_put_file_name):
         workbook_manager.create_empty_workbook(out_put_file_name)
         # Extract data from manually created workbook, if file exists
