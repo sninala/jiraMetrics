@@ -6,10 +6,10 @@ from openpyxl.chart import BarChart, LineChart, Series, Reference
 
 class ChartManager(object):
 
-    def __init__(self, data_sheet, charts_sheet, project_properties):
+    def __init__(self, config, data_sheet, charts_sheet):
+        self.config = config
         self.data_sheet = data_sheet
         self.charts_sheet = charts_sheet
-        self.project_properties = project_properties
 
     def draw_barchart(self, chart_properties):
         print "Creating Bar chart for {}".format(chart_properties['title'])
@@ -41,8 +41,7 @@ class ChartManager(object):
         for index, current_series in enumerate(series):
             if projects:
                 project = projects[index]
-                project_properties = self.project_properties.get_project_properties_for(project)
-                project_color = project_properties["COLOR"]
+                project_color = self.config.get('PROJECT_COLOR', project)
                 current_series.graphicalProperties.solidFill = project_color
             else:
                 current_series.graphicalProperties.solidFill = "1381BD"
@@ -86,13 +85,14 @@ class ChartManager(object):
         for index, current_series in enumerate(series):
             if projects:
                 project = projects[index]
-                project_properties = self.project_properties.get_project_properties_for(project)
-                current_series.marker.symbol = project_properties["MARKER_SYMBOL"]
+                project_color = self.config.get('PROJECT_COLOR', project)
+                marker_symbol = self.config.get('PROJECT_MARKER_SYMBOL', project)
+                current_series.marker.symbol = marker_symbol
                 current_series.marker.size = 7
-                if project_properties["MARKER_SYMBOL"] in ("triangle", "diamond", "circle"):
-                    current_series.marker.graphicalProperties.solidFill = project_properties["COLOR"] # Marker filling
-                current_series.marker.graphicalProperties.line.solidFill = project_properties["COLOR"]
-                current_series.graphicalProperties.line.solidFill = project_properties["COLOR"]
+                if marker_symbol in ("triangle", "diamond", "circle"):
+                    current_series.marker.graphicalProperties.solidFill = project_color # Marker filling
+                current_series.marker.graphicalProperties.line.solidFill = project_color
+                current_series.graphicalProperties.line.solidFill = project_color
             elif statistics:
                 statistic = statistics[index]
                 properties = self.get_chart_properties_for(statistic)

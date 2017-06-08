@@ -12,9 +12,8 @@ from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
 
 class ExcelWorkBookManager(object):
 
-    def __init__(self, config, project_properties):
+    def __init__(self, config):
         self.config = config
-        self.project_properties = project_properties
         self.script_executed_for_current_week = False
         self.closed_elapsed_stats_current_week = None
         self.closed_elapsed_grouping_per_project = None
@@ -41,15 +40,14 @@ class ExcelWorkBookManager(object):
                 for i, j in zip(range(length), range(ord(sub_header_start_column), ord(sub_header_end_column) + 1)):
                     ws[chr(j) + Constants.ROLLUP_HEADER_ROWS] = sub_header[i]
         ws.freeze_panes = Constants.ROLLUP_FREEZE_PANE_CELL
-        ert_projects = self.project_properties.get_project_codes()
+        ert_projects = self.get_project_codes()
 
         for project in ert_projects:
             project_sheet_header = Constants.PROJECT_SHEET_PROPERTIES['SHEET_HEADER']
             project_worksheet = workbook.create_sheet(project)
             project_worksheet.append(project_sheet_header)
             project_worksheet.freeze_panes = Constants.PROJECT_SHEET_PROPERTIES['SHEET_FREEZE_PANE_CELL']
-            project_properties = self.project_properties.get_project_properties_for(project)
-            project_worksheet.sheet_properties.tabColor = project_properties['COLOR']
+            project_worksheet.sheet_properties.tabColor = self.config.get('PROJECT_COLOR', project)
 
         closed_elapsed_rollup = workbook.create_sheet(Constants.CLOSED_ELAPSED_ROLLUP_SHEET_TITLE, 0)
         closed_elapsed_rollup_header = Constants.CLOSED_ELAPSED_ROLLUP_SHEET_HEADERS
@@ -82,7 +80,7 @@ class ExcelWorkBookManager(object):
         workbook.save(filename=output_file_name)
 
     def get_project_names(self):
-        project_codes = self.project_properties.get_project_codes()
+        project_codes = self.get_project_codes()
         latest_project_names_map = self.get_project_code_mapping_details_for_latest_workbook()
         project_names = []
         for project in project_codes:
@@ -233,7 +231,7 @@ class ExcelWorkBookManager(object):
         print "Data Extraction Completed"
 
     def is_workbook_already_has_data_for_current_week(self, workbook, run_date_str):
-        ert_projects = self.project_properties.get_project_codes()
+        ert_projects = self.get_project_codes()
         project_worksheet = workbook[ert_projects[0]]
         if project_worksheet.max_row == 1:
             script_executed_for_current_week = False
@@ -258,7 +256,7 @@ class ExcelWorkBookManager(object):
         rollup_sheet_max_row = rollup_sheet.max_row
         self.script_executed_for_current_week = self.is_workbook_already_has_data_for_current_week(
             workbook, run_date_str)
-        ert_projects = self.project_properties.get_project_codes()
+        ert_projects = self.get_project_codes()
         if self.script_executed_for_current_week:
             rollup_sheet_max_row = (rollup_sheet_max_row - len(ert_projects))
 
@@ -276,9 +274,8 @@ class ExcelWorkBookManager(object):
                 worksheet = workbook.create_sheet(project)
                 worksheet.append(project_sheet_header)
                 worksheet.freeze_panes = Constants.PROJECT_SHEET_PROPERTIES['SHEET_FREEZE_PANE_CELL']
+                worksheet.sheet_properties.tabColor = self.config.get('PROJECT_COLOR', project)
                 is_project_newly_added = True
-            project_properties = self.project_properties.get_project_properties_for(project)
-            worksheet.sheet_properties.tabColor = project_properties['COLOR']
             row = []
             jql_queries = collections.OrderedDict(self.config.items('JQL'))
             if self.config.has_section(project + '_JQL'):
@@ -432,7 +429,7 @@ class ExcelWorkBookManager(object):
         return self.projects_to_calculate_closed_elapsed
 
     def get_pivot_metrics_from_work_book(self, workbook, weekly_metric_type):
-        ert_projects = self.project_properties.get_project_codes()
+        ert_projects = self.get_project_codes()
         weekly_total_metrics = collections.OrderedDict()
         weekly_totals_closed = collections.OrderedDict()
         inprogress_weekly_totals = collections.OrderedDict()
@@ -466,7 +463,7 @@ class ExcelWorkBookManager(object):
 
     def apply_styles_to_the_workbook(self, workbook):
         sheets = [Constants.ROLLUP_SHEET_TITLE] + [Constants.CLOSED_ELAPSED_ROLLUP_SHEET_TITLE]
-        sheets = sheets + self.project_properties.get_project_codes()
+        sheets = sheets + self.get_project_codes()
         side = Side(border_style='thin', color="FF000000")
         for sheet in sheets:
             ws = workbook[sheet]
@@ -537,7 +534,7 @@ class ExcelWorkBookManager(object):
         project_rows = []
         for run_date in run_dates:
             total = 0
-            for project in self.project_properties.get_project_codes():
+            for project in self.get_project_codes():
                 key = project + '#' + run_date
                 if key in weekly_total_metrics:
                     (new, diff1, in_progress, diff2, closed, diff3) = weekly_total_metrics[key].split('#')
@@ -713,7 +710,7 @@ class ExcelWorkBookManager(object):
             metric_name = Constants.CLOSED_WEEKLY_TOTALS
         weekly_totals = self.get_pivot_metrics_from_work_book(workbook, metric_name)
         run_dates = ExcelWorkBookManager.get_run_dates_from_metrics(weekly_totals)
-        ert_projects = self.project_properties.get_project_codes()
+        ert_projects = self.get_project_codes()
         ert_project_names = self.get_project_names()
         header_row = ['Run Date'] + ert_project_names
         weekly_total_pivot_rows = list()
@@ -747,7 +744,7 @@ class ExcelWorkBookManager(object):
             metric_name = Constants.CLOSED_WEEKLY_TOTALS
         weekly_totals = self.get_pivot_metrics_from_work_book(workbook, metric_name)
         run_dates = ExcelWorkBookManager.get_run_dates_from_metrics(weekly_totals)
-        ert_projects = self.project_properties.get_project_codes()
+        ert_projects = self.get_project_codes()
         ert_project_names = self.get_project_names()
         header_row = ['Run Date'] + ert_project_names
         weekly_change_pivot_rows = list()
@@ -815,6 +812,10 @@ class ExcelWorkBookManager(object):
                 break
         return max_row
 
+    def get_project_codes(self):
+        project_codes = [project.strip() for project in self.config.get('BUG_TRACKER', 'projects').split(",")]
+        return project_codes
+
     @staticmethod
     def get_closed_elapsed_metrics(array_list):
         median = numpy.median(numpy.array(array_list))
@@ -839,7 +840,7 @@ class ExcelWorkBookManager(object):
                 charts_worksheet.sheet_properties.tabColor = charts_sheet_color
             else:
                 charts_worksheet = workbook.get_sheet_by_name(charts_sheet_name)
-            chart_manager = ChartManager(pivots_worksheet, charts_worksheet, self.project_properties)
+            chart_manager = ChartManager(self.config, pivots_worksheet, charts_worksheet)
             self.draw_charts_for(metric_name, chart_manager)
 
         workbook.save(filename=out_put_file_name)
@@ -903,7 +904,7 @@ class ExcelWorkBookManager(object):
             barchart_properties['trendline'] = False
             barchart_properties['data_labels'] = False
             barchart_properties['cell'] = 'A2'
-            barchart_properties['projects'] = self.project_properties.get_project_codes()
+            barchart_properties['projects'] = self.get_project_codes()
             chart_manager.draw_barchart(barchart_properties)
             self.draw_charts_for_metrics_at_project_level(chart_manager, title, "barchart")
         elif (metric_name == Constants.CLOSED_WEEKLY_CHANGE)\
@@ -924,7 +925,7 @@ class ExcelWorkBookManager(object):
             linechart_properties['trendline'] = False
             linechart_properties['data_labels'] = False
             linechart_properties['cell'] = 'A2'
-            linechart_properties['projects'] = self.project_properties.get_project_codes()
+            linechart_properties['projects'] = self.get_project_codes()
             linechart_properties['statistics'] = []
             chart_manager.draw_linechart(linechart_properties)
             self.draw_charts_for_metrics_at_project_level(chart_manager, title, "linechart")
@@ -954,7 +955,7 @@ class ExcelWorkBookManager(object):
 
     def draw_charts_for_metrics_at_project_level(self, chart_manager, title, chart_type):
         data_sheet = chart_manager.data_sheet
-        ert_projects = self.project_properties.get_project_codes()
+        ert_projects = self.get_project_codes()
         cell_index = 30
         for index, project in enumerate(ert_projects):
             chart_properties = dict()

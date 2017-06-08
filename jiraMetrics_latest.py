@@ -41,7 +41,7 @@ if __name__ == "__main__":
     project_properties.initialize_project_properties()
     with open(config_file, 'wb') as configfile:
         config.write(configfile)
-    workbook_manager = ExcelWorkBookManager(config, project_properties)
+    workbook_manager = ExcelWorkBookManager(config)
     if not os.path.exists(out_put_file_name):
         workbook_manager.create_empty_workbook(out_put_file_name)
         # Extract data from manually created workbook, if file exists
