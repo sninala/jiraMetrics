@@ -985,6 +985,7 @@ class ExcelWorkBookManager(object):
         data_sheet = chart_manager.data_sheet
         ert_projects = self.get_projects_to_calculate_closed_elapsed()
         cell_index = 30
+        # starting at column 6 because, first 5 columns are used by closed elapsed metrics for all projects
         col = 6
         for project in ert_projects:
             max_row = self.get_maximum_row(data_sheet, col)
@@ -1012,8 +1013,11 @@ class ExcelWorkBookManager(object):
     def draw_charts_for_closed_elapsed_metric_per_elapsed_day(self, chart_manager, chart_type):
         data_sheet = chart_manager.data_sheet
         ert_projects = self.get_projects_to_calculate_closed_elapsed()
+        # 6 columns for closed elapsed for all projects
         col = 6 + (5 * len(ert_projects))
-        cell_index = 30 * len(ert_projects)
+        # first 30 rows to display the chart for closed Elapsed metrics for all projects
+        # 30 rows for each project closed elapsed metric
+        cell_index = 30 + (30 * len(ert_projects))
         max_row = self.get_maximum_row(data_sheet, col)
         chart_properties = dict()
         chart_properties['logarithmic_y_axis'] = True
@@ -1039,8 +1043,10 @@ class ExcelWorkBookManager(object):
         data_sheet = chart_manager.data_sheet
         ert_projects = self.get_projects_to_calculate_closed_elapsed()
         col = 6 + (5 * len(ert_projects))
-        cell_index = 30 * len(ert_projects)
-        cell_index = cell_index + 30
+        # first 30 rows to display the chart for closed Elapsed metrics for all projects
+        # 30 rows for each project closed elapsed metric
+        # another 30 rows to display The Number of Jira Tickets per Elapsed Day
+        cell_index = 30 + (30 * len(ert_projects)) + 30
         max_row = self.get_maximum_row(data_sheet, col)
         chart_properties = dict()
         chart_properties['logarithmic_y_axis'] = True
