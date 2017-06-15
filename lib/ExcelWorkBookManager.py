@@ -951,7 +951,6 @@ class ExcelWorkBookManager(object):
             chart_manager.draw_linechart(linechart_properties)
             self.draw_charts_for_closed_elapsed_metric_per_project(chart_manager, "linechart")
             self.draw_charts_for_closed_elapsed_metric_per_elapsed_day(chart_manager, "barchart")
-            self.draw_charts_for_closed_elapsed_metric_per_elapsed_day_per_project(chart_manager, "barchart")
 
     def draw_charts_for_metrics_at_project_level(self, chart_manager, title, chart_type):
         data_sheet = chart_manager.data_sheet
@@ -1029,35 +1028,6 @@ class ExcelWorkBookManager(object):
         chart_properties['cats_min_column'] = col
         chart_properties['cats_min_row'] = 3
         chart_properties['cats_max_column'] = col + len(ert_projects) + 1
-        chart_properties['cats_max_row'] = max_row
-        chart_properties['trendline'] = False
-        chart_properties['data_labels'] = False
-        chart_properties['stacked'] = True
-
-        chart_properties['projects'] = []
-        chart_properties['cell'] = 'A' + str(cell_index)
-        if chart_type == "barchart":
-            chart_manager.draw_barchart(chart_properties)
-
-    def draw_charts_for_closed_elapsed_metric_per_elapsed_day_per_project(self, chart_manager, chart_type):
-        data_sheet = chart_manager.data_sheet
-        ert_projects = self.get_projects_to_calculate_closed_elapsed()
-        col = 6 + (5 * len(ert_projects))
-        # first 30 rows to display the chart for closed Elapsed metrics for all projects
-        # 30 rows for each project closed elapsed metric
-        # another 30 rows to display The Number of Jira Tickets per Elapsed Day
-        cell_index = 30 + (30 * len(ert_projects)) + 30
-        max_row = self.get_maximum_row(data_sheet, col)
-        chart_properties = dict()
-        chart_properties['logarithmic_y_axis'] = True
-        chart_properties['title'] = "The Number of Jira Tickets per Elapsed Day per Project"
-        chart_properties['data_min_column'] = col + 1
-        chart_properties['data_min_row'] = 2
-        chart_properties['data_max_column'] = col + len(ert_projects)
-        chart_properties['data_max_row'] = max_row
-        chart_properties['cats_min_column'] = col
-        chart_properties['cats_min_row'] = 3
-        chart_properties['cats_max_column'] = col + len(ert_projects)
         chart_properties['cats_max_row'] = max_row
         chart_properties['trendline'] = False
         chart_properties['data_labels'] = False
