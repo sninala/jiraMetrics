@@ -1,0 +1,48 @@
+EXPRT 2015 Resolved Or Closed
+-----------------------------
+project in (EXPRT) AND status in (Resolved, Closed) AND createdDate >= 2015-01-01 AND createdDate <= 2015-12-31
+
+
+Report: EPR-RCVS-SPOR-MPORT 2015 Resolved-Closed
+------------------------------------------------
+project in (EPR, RCVS, SPOR, MPORT) AND status in (Resolved, Closed) AND createdDate >= 2015-01-01 AND createdDate <= 2015-12-31
+
+
+Report: EPR-RCVS-SPOR 2016 Resolved-Closed
+------------------------------------------
+project in (EPR, RCVS, SPOR) AND status in (Resolved, Closed) AND createdDate >= 2016-01-01 AND createdDate <= 2017-04-13
+
+
+Report: EXPRT 2016 Resolved Or Closed
+-------------------------------------
+project in (EXPRT) AND status in (Resolved, Closed) AND createdDate >= 2016-01-01 AND createdDate <= 2017-04-13
+
+
+
+===two new filters that split out mPort===
+
+Report: MPORT Jan-Current 2017 Resolved-Closed
+------------------------------------------
+project in (MPORT) AND status in (Resolved, Closed) AND createdDate >= 2017-01-01 AND createdDate <= 2017-04-20
+
+
+Report: MPORT Jun-Dec 2016 Resolved-Closed
+------------------------------------------
+project in (MPORT) AND status in (Resolved, Closed) AND createdDate >= 2016-06-01 AND createdDate <= 2016-12-31
+
+=====
+
+
+
+Report: MPORT Jan-May 2016 Resolved-Closed
+------------------------------------------
+project in (MPORT) AND status in (Resolved, Closed) AND createdDate >= 2016-01-01 AND createdDate < 2016-06-01 ORDER BY created DESC
+
+
+
+
+=-=-=-=-=-= ARCHIVE -=-=-=-=-=-=
+
+(OLD) Report: MPORT Jun-Current 2016 Resolved-Closed
+----------------------------------------------
+project in (MPORT) AND status in (Resolved, Closed) AND createdDate >= 2016-06-01 AND createdDate <= 2017-04-13
