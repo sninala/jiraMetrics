@@ -32,6 +32,10 @@ class ChartManager(object):
         chart.add_data(data, titles_from_data=True)
         if "stacked" in chart_properties:
             chart.grouping = "stacked"
+        if "y_axis_min_value" in chart_properties:
+            chart.y_axis.scaling.min = chart_properties["y_axis_min_value"]
+        if "y_axis_max_value" in chart_properties:
+            chart.y_axis.scaling.max = chart_properties["y_axis_max_value"]
         if chart_properties['logarithmic_y_axis']:
             chart.y_axis.scaling.logBase = 10
         chart.set_categories(cats)
@@ -64,8 +68,10 @@ class ChartManager(object):
         chart.x_axis.tickLblPos = "low"
         if chart_properties['logarithmic_y_axis']:
             chart.y_axis.scaling.logBase = 10
-        #chart.y_axis.title = 'Growth'
-        #chart.x_axis.title = 'Run Date'
+        if "y_axis_min_value" in chart_properties:
+            chart.y_axis.scaling.min = chart_properties["y_axis_min_value"]
+        if "y_axis_max_value" in chart_properties:
+            chart.y_axis.scaling.max = chart_properties["y_axis_max_value"]
         data = Reference(
             self.data_sheet, min_col=chart_properties['data_min_column'],
             min_row=chart_properties['data_min_row'],

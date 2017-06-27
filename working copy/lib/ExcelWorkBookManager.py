@@ -14,6 +14,7 @@ class ExcelWorkBookManager(object):
 
     def __init__(self, config):
         self.config = config
+        self.min_max_values_for_metric = dict()
         self.script_executed_for_current_week = False
         self.closed_elapsed_stats_current_week = None
         self.closed_elapsed_grouping_per_project = None
@@ -387,6 +388,7 @@ class ExcelWorkBookManager(object):
                         s.add(project)
                         projects_to_calculate_closed_elapsed.append(project)
                     current_project_closed_elapsed_stats.append(closed_elapsed_value)
+                    # grouping tickets by closed_elapsed value
                     if closed_elapsed_value in closed_elapsed_grouping_per_project[project]:
                         closed_elapsed_grouping_per_project[project][closed_elapsed_value] = \
                             closed_elapsed_grouping_per_project[project][closed_elapsed_value] + 1
@@ -396,7 +398,10 @@ class ExcelWorkBookManager(object):
             current_project_metrics = self.get_closed_elapsed_metrics(current_project_closed_elapsed_stats)
             row = [latest_workbook_project_name_mapper[project], program_run_date] + current_project_metrics
             closed_elapsed_stats[project] = row
-            closed_elapsed_rollup_rows.append(row)
+            if not row[2] and not row[3] and not row[4] and not row[5]:
+                pass
+            else:
+                closed_elapsed_rollup_rows.append(row)
         if self.script_executed_for_current_week:
             index = 1
             for row in closed_elapsed_rollup_rows:
@@ -700,14 +705,14 @@ class ExcelWorkBookManager(object):
         self.populate_closed_elapsed_grouping_per_project(
             workbook, pivots_worksheet, closed_elapsed_grouping_per_project)
 
-    def create_weekly_total_pivot_table_for(self, status, workbook, pivots_worksheet):
-        metric_name = None
-        if status == Constants.STATUS_INPROGRESS:
-            metric_name = Constants.IN_PROGRESS_WEEKLY_TOTALS
-        elif status == Constants.STATUS_NEW:
-            metric_name = Constants.NEW_WEEKLY_TOTALS
-        elif status == Constants.STATUS_CLOSED:
-            metric_name = Constants.CLOSED_WEEKLY_TOTALS
+    def create_weekly_total_pivot_table_for(self, metric_name, workbook, pivots_worksheet):
+        status = None
+        if metric_name == Constants.IN_PROGRESS_WEEKLY_TOTALS:
+            status = Constants.STATUS_INPROGRESS
+        elif metric_name == Constants.NEW_WEEKLY_TOTALS:
+            status = Constants.STATUS_NEW
+        elif metric_name == Constants.CLOSED_WEEKLY_TOTALS:
+            status = Constants.STATUS_CLOSED
         weekly_totals = self.get_pivot_metrics_from_work_book(workbook, metric_name)
         run_dates = ExcelWorkBookManager.get_run_dates_from_metrics(weekly_totals)
         ert_projects = self.get_project_codes()
@@ -729,20 +734,29 @@ class ExcelWorkBookManager(object):
         weekly_total_pivot_rows.insert(0, header_row)
         col = 1
         row = 1
+        weekly_total_values = list()
         for data_row in weekly_total_pivot_rows:
             for index, value in enumerate(data_row):
                 pivots_worksheet.cell(row=row, column=col + index).value = data_row[index]
+                if index > 0 and row > 1:
+                    weekly_total_values.append(data_row[index])
             row = row + 1
+        weekly_total_values = sorted(set(weekly_total_values))
+        self.min_max_values_for_metric[metric_name] = [0, weekly_total_values[len(weekly_total_values) - 1]]
 
-    def create_weekly_change_pivot_table_for(self, status, workbook, pivots_worksheet):
-        metric_name = None
-        if status == Constants.STATUS_INPROGRESS:
-            metric_name = Constants.IN_PROGRESS_WEEKLY_TOTALS
-        elif status == Constants.STATUS_NEW:
-            metric_name = Constants.NEW_WEEKLY_TOTALS
-        elif status == Constants.STATUS_CLOSED:
-            metric_name = Constants.CLOSED_WEEKLY_TOTALS
-        weekly_totals = self.get_pivot_metrics_from_work_book(workbook, metric_name)
+    def create_weekly_change_pivot_table_for(self, metric_name, workbook, pivots_worksheet):
+        metric_name_total = None
+        status = None
+        if metric_name == Constants.IN_PROGRESS_WEEKLY_CHANGE:
+            metric_name_total = Constants.IN_PROGRESS_WEEKLY_TOTALS
+            status = Constants.STATUS_INPROGRESS
+        elif metric_name == Constants.NEW_WEEKLY_CHANGE:
+            metric_name_total = Constants.NEW_WEEKLY_TOTALS
+            status = Constants.STATUS_NEW
+        elif metric_name == Constants.CLOSED_WEEKLY_CHANGE:
+            metric_name_total = Constants.CLOSED_WEEKLY_TOTALS
+            status = Constants.STATUS_CLOSED
+        weekly_totals = self.get_pivot_metrics_from_work_book(workbook, metric_name_total)
         run_dates = ExcelWorkBookManager.get_run_dates_from_metrics(weekly_totals)
         ert_projects = self.get_project_codes()
         ert_project_names = self.get_project_names()
@@ -767,28 +781,37 @@ class ExcelWorkBookManager(object):
         weekly_change_pivot_rows.insert(0, header_row)
         col = 1
         row = 1
+        weekly_change_values = list()
         for data_row in weekly_change_pivot_rows:
             for index, value in enumerate(data_row):
                 pivots_worksheet.cell(row=row, column=col + index).value = data_row[index]
+                if index > 0 and row > 1:
+                    weekly_change_values.append(data_row[index])
             row = row + 1
+        weekly_change_values = sorted(set(weekly_change_values))
+        min_weekly_change = weekly_change_values[0]
+        if min_weekly_change < 0:
+            min_weekly_change = min_weekly_change - 5
+        max_weekly_change = weekly_change_values[len(weekly_change_values) - 1]
+        self.min_max_values_for_metric[metric_name] = [min_weekly_change, max_weekly_change]
 
     def create_inprogress_weekly_total_pivot_tables(self, workbook, pivots_worksheet):
-        self.create_weekly_total_pivot_table_for(Constants.STATUS_INPROGRESS, workbook, pivots_worksheet)
+        self.create_weekly_total_pivot_table_for(Constants.IN_PROGRESS_WEEKLY_TOTALS, workbook, pivots_worksheet)
 
     def create_new_weekly_total_pivot_tables(self, workbook, pivots_worksheet):
-        self.create_weekly_total_pivot_table_for(Constants.STATUS_NEW, workbook, pivots_worksheet)
+        self.create_weekly_total_pivot_table_for(Constants.NEW_WEEKLY_TOTALS, workbook, pivots_worksheet)
 
     def create_closed_weekly_totals_pivot_tables(self, workbook, pivots_worksheet):
-        self.create_weekly_total_pivot_table_for(Constants.STATUS_CLOSED, workbook, pivots_worksheet)
+        self.create_weekly_total_pivot_table_for(Constants.CLOSED_WEEKLY_TOTALS, workbook, pivots_worksheet)
 
     def create_closed_weekly_change_pivot_tables(self, workbook, pivots_worksheet):
-        self.create_weekly_change_pivot_table_for(Constants.STATUS_CLOSED, workbook, pivots_worksheet)
+        self.create_weekly_change_pivot_table_for(Constants.CLOSED_WEEKLY_CHANGE, workbook, pivots_worksheet)
 
     def create_inprogress_weekly_change_pivot_tables(self, workbook, pivots_worksheet):
-        self.create_weekly_change_pivot_table_for(Constants.STATUS_INPROGRESS, workbook, pivots_worksheet)
+        self.create_weekly_change_pivot_table_for(Constants.IN_PROGRESS_WEEKLY_CHANGE, workbook, pivots_worksheet)
 
     def create_new_weekly_change_pivot_tables(self, workbook, pivots_worksheet):
-        self.create_weekly_change_pivot_table_for(Constants.STATUS_NEW, workbook, pivots_worksheet)
+        self.create_weekly_change_pivot_table_for(Constants.NEW_WEEKLY_CHANGE, workbook, pivots_worksheet)
 
     @staticmethod
     def get_run_dates_from_metrics(metrics):
@@ -906,7 +929,7 @@ class ExcelWorkBookManager(object):
             barchart_properties['cell'] = 'A2'
             barchart_properties['projects'] = self.get_project_codes()
             chart_manager.draw_barchart(barchart_properties)
-            self.draw_charts_for_metrics_at_project_level(chart_manager, title, "barchart")
+            self.draw_charts_for_metrics_at_project_level(chart_manager, title, metric_name, "barchart")
         elif (metric_name == Constants.CLOSED_WEEKLY_CHANGE)\
                 or (metric_name == Constants.IN_PROGRESS_WEEKLY_CHANGE)\
                 or (metric_name == Constants.NEW_WEEKLY_CHANGE):
@@ -928,7 +951,7 @@ class ExcelWorkBookManager(object):
             linechart_properties['projects'] = self.get_project_codes()
             linechart_properties['statistics'] = []
             chart_manager.draw_linechart(linechart_properties)
-            self.draw_charts_for_metrics_at_project_level(chart_manager, title, "linechart")
+            self.draw_charts_for_metrics_at_project_level(chart_manager, title, metric_name, "linechart")
         elif metric_name == Constants.CLOSED_ELAPSED:
             max_row = self.get_maximum_row(chart_manager.data_sheet, 1)
             title = Constants.METRICS[metric_name]['chart_current_week_title']
@@ -952,7 +975,7 @@ class ExcelWorkBookManager(object):
             self.draw_charts_for_closed_elapsed_metric_per_project(chart_manager, "linechart")
             self.draw_charts_for_closed_elapsed_metric_per_elapsed_day(chart_manager, "barchart")
 
-    def draw_charts_for_metrics_at_project_level(self, chart_manager, title, chart_type):
+    def draw_charts_for_metrics_at_project_level(self, chart_manager, title, metric_name, chart_type):
         data_sheet = chart_manager.data_sheet
         ert_projects = self.get_project_codes()
         cell_index = 30
@@ -973,6 +996,8 @@ class ExcelWorkBookManager(object):
             chart_properties['projects'] = [project]
             chart_properties['statistics'] = []
             chart_properties['cell'] = 'A' + str(cell_index)
+            chart_properties['y_axis_min_value'] = self.min_max_values_for_metric[metric_name][0]
+            chart_properties['y_axis_max_value'] = self.min_max_values_for_metric[metric_name][1]
             cell_index += 30
             if chart_type == "linechart":
                 chart_manager.draw_linechart(chart_properties)
