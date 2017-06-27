@@ -978,11 +978,12 @@ class ExcelWorkBookManager(object):
     def draw_charts_for_metrics_at_project_level(self, chart_manager, title, metric_name, chart_type):
         data_sheet = chart_manager.data_sheet
         ert_projects = self.get_project_codes()
+        project_name_mapper = self.get_project_code_mapping_details_for_latest_workbook()
         cell_index = 30
         for index, project in enumerate(ert_projects):
             chart_properties = dict()
             chart_properties['logarithmic_y_axis'] = False
-            chart_properties['title'] = title + " - " + project
+            chart_properties['title'] = title + " - " + project_name_mapper[project]
             chart_properties['data_min_column'] = index + 2
             chart_properties['data_min_row'] = 1
             chart_properties['data_max_column'] = index + 2
