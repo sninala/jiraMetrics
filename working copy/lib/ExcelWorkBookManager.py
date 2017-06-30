@@ -14,7 +14,7 @@ class ExcelWorkBookManager(object):
 
     def __init__(self, config):
         self.config = config
-        self.min_max_values_for_metric = dict()
+        self.min_max_values_for_metric = collections.OrderedDict()
         self.script_executed_for_current_week = False
         self.closed_elapsed_stats_current_week = None
         self.closed_elapsed_grouping_per_project = None
@@ -734,15 +734,75 @@ class ExcelWorkBookManager(object):
         weekly_total_pivot_rows.insert(0, header_row)
         col = 1
         row = 1
-        weekly_total_values = list()
         for data_row in weekly_total_pivot_rows:
             for index, value in enumerate(data_row):
                 pivots_worksheet.cell(row=row, column=col + index).value = data_row[index]
-                if index > 0 and row > 1:
-                    weekly_total_values.append(data_row[index])
             row = row + 1
-        weekly_total_values = sorted(set(weekly_total_values))
-        self.min_max_values_for_metric[metric_name] = [0, weekly_total_values[len(weekly_total_values) - 1]]
+        self.calculate_project_min_max_values_for_metric(metric_name, weekly_total_pivot_rows)
+
+    def calculate_project_min_max_values_for_metric(self, metric_name, weekly_total_pivot_rows):
+        row = 1
+        projects = list()
+        all_values = list()
+        self.min_max_values_for_metric[metric_name] = collections.OrderedDict()
+        max_value = 0
+        max_value_project_name = None
+        for data_row in weekly_total_pivot_rows:
+            for index, value in enumerate(data_row):
+                if row == 1 and index >= 1:
+                    project = data_row[index]
+                    projects.append(project)
+                    self.min_max_values_for_metric[metric_name][project] = list()
+                elif row > 1 and index >= 1:
+                    value = data_row[index]
+                    if value > max_value:
+                        max_value = value
+                        max_value_project_name = projects[index-1]
+                    self.min_max_values_for_metric[metric_name][projects[index-1]].append(value)
+                    all_values.append(value)
+            row = row + 1
+        # print max_value_project_name
+
+        if metric_name in [Constants.IN_PROGRESS_WEEKLY_TOTALS, Constants.NEW_WEEKLY_TOTALS,
+                           Constants.CLOSED_WEEKLY_TOTALS]:
+            max_project_values = self.min_max_values_for_metric[metric_name][max_value_project_name]
+            max_project_values = sorted(set(max_project_values))
+            max_project_max_value = max_project_values[len(max_project_values) - 1]
+            max_project_min_value = max_project_values[0]
+            max_rounded_value = int(50 * round(max_project_max_value / 50)) + 100
+            min_rounded_value = int(50 * round(max_project_min_value / 50)) - 50
+        else:
+            all_values = sorted(set(all_values))
+            min_all_projects = all_values[0]
+            max_all_projects = all_values[len(all_values) - 1]
+            max_rounded_value = int(5 * round(max_all_projects / 5)) + 10
+            min_rounded_value = int(5 * round(min_all_projects / 5)) - 5
+        diff = max_rounded_value - min_rounded_value
+
+        for project in projects:
+            if project == max_value_project_name:
+                self.min_max_values_for_metric[metric_name][project] = [min_rounded_value, max_rounded_value]
+            else:
+                if metric_name in [Constants.IN_PROGRESS_WEEKLY_TOTALS, Constants.NEW_WEEKLY_TOTALS,
+                                   Constants.CLOSED_WEEKLY_TOTALS]:
+                    values = self.min_max_values_for_metric[metric_name][project]
+                    values = sorted(set(values))
+                    project_max_value = values[len(values) - 1]
+                    project_max_value = int(50 * round(project_max_value / 50)) + 100
+                    project_min_value = project_max_value - diff
+                    if project_min_value < 0:
+                        project_max_value = diff
+                        project_min_value = 0
+                    else:
+                        project_min_value = int(50 * round(project_min_value / 50))
+                    self.min_max_values_for_metric[metric_name][project] = [project_min_value, project_max_value]
+                else:
+                    values = self.min_max_values_for_metric[metric_name][project]
+                    values = sorted(set(values))
+                    project_max_value = values[len(values) - 1]
+                    project_max_value = max_rounded_value
+                    project_min_value = min_rounded_value
+                    self.min_max_values_for_metric[metric_name][project] = [project_min_value, project_max_value]
 
     def create_weekly_change_pivot_table_for(self, metric_name, workbook, pivots_worksheet):
         metric_name_total = None
@@ -781,19 +841,11 @@ class ExcelWorkBookManager(object):
         weekly_change_pivot_rows.insert(0, header_row)
         col = 1
         row = 1
-        weekly_change_values = list()
         for data_row in weekly_change_pivot_rows:
             for index, value in enumerate(data_row):
                 pivots_worksheet.cell(row=row, column=col + index).value = data_row[index]
-                if index > 0 and row > 1:
-                    weekly_change_values.append(data_row[index])
             row = row + 1
-        weekly_change_values = sorted(set(weekly_change_values))
-        min_weekly_change = weekly_change_values[0]
-        if min_weekly_change < 0:
-            min_weekly_change = min_weekly_change - 5
-        max_weekly_change = weekly_change_values[len(weekly_change_values) - 1]
-        self.min_max_values_for_metric[metric_name] = [min_weekly_change, max_weekly_change]
+        self.calculate_project_min_max_values_for_metric(metric_name, weekly_change_pivot_rows)
 
     def create_inprogress_weekly_total_pivot_tables(self, workbook, pivots_worksheet):
         self.create_weekly_total_pivot_table_for(Constants.IN_PROGRESS_WEEKLY_TOTALS, workbook, pivots_worksheet)
@@ -981,9 +1033,10 @@ class ExcelWorkBookManager(object):
         project_name_mapper = self.get_project_code_mapping_details_for_latest_workbook()
         cell_index = 30
         for index, project in enumerate(ert_projects):
+            project_name = project_name_mapper[project]
             chart_properties = dict()
             chart_properties['logarithmic_y_axis'] = False
-            chart_properties['title'] = title + " - " + project_name_mapper[project]
+            chart_properties['title'] = title + " - " + project_name
             chart_properties['data_min_column'] = index + 2
             chart_properties['data_min_row'] = 1
             chart_properties['data_max_column'] = index + 2
@@ -997,8 +1050,8 @@ class ExcelWorkBookManager(object):
             chart_properties['projects'] = [project]
             chart_properties['statistics'] = []
             chart_properties['cell'] = 'A' + str(cell_index)
-            chart_properties['y_axis_min_value'] = self.min_max_values_for_metric[metric_name][0]
-            chart_properties['y_axis_max_value'] = self.min_max_values_for_metric[metric_name][1]
+            chart_properties['y_axis_min_value'] = self.min_max_values_for_metric[metric_name][project_name][0]
+            chart_properties['y_axis_max_value'] = self.min_max_values_for_metric[metric_name][project_name][1]
             cell_index += 30
             if chart_type == "linechart":
                 chart_manager.draw_linechart(chart_properties)
