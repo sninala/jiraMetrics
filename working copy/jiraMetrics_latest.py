@@ -25,7 +25,13 @@ if __name__ == "__main__":
     output_dir = os.path.join(CURRENT_DIRECTORY, 'output')
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+    today = datetime.date.today()
+    days_to_subtract = config.get('BUG_TRACKER', 'day_difference')
+    days_to_subtract = int(days_to_subtract) if days_to_subtract else 0
+    program_run_date = today - datetime.timedelta(days=days_to_subtract)
+    run_date_yyyy_mm_dd = program_run_date.strftime("%Y-%m-%d")
     out_put_file_name = os.path.join(output_dir, config.get('OUTPUT', 'output_file_name'))
+    out_put_file_name = out_put_file_name.replace('yyyy-mm-dd', run_date_yyyy_mm_dd)
     if os.path.exists(out_put_file_name):
         try:
             os.rename(out_put_file_name, out_put_file_name)
@@ -33,10 +39,6 @@ if __name__ == "__main__":
             print out_put_file_name + ' already in use. Please close it'
             time.sleep(5)
             sys.exit(0)
-    today = datetime.date.today()
-    days_to_subtract = config.get('BUG_TRACKER', 'day_difference')
-    days_to_subtract = int(days_to_subtract) if days_to_subtract else 0
-    program_run_date = today - datetime.timedelta(days=days_to_subtract)
     project_properties = ProjectProperties(config)
     project_properties.initialize_project_properties()
     with open(config_file, 'wb') as configfile:
