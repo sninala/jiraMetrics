@@ -1,6 +1,9 @@
 from Constants import Constants
 from openpyxl.chart.trendline import Trendline
 from openpyxl.chart.label import DataLabelList
+from openpyxl.drawing.line import LineProperties
+from openpyxl.chart.shapes import GraphicalProperties
+from openpyxl.drawing.colors import ColorChoice
 from openpyxl.chart import BarChart, LineChart, Series, Reference
 
 
@@ -38,6 +41,7 @@ class ChartManager(object):
             chart.y_axis.scaling.max = chart_properties["y_axis_max_value"]
         if chart_properties['logarithmic_y_axis']:
             chart.y_axis.scaling.logBase = 10
+            chart.y_axis.minorTickMark = "out"
         chart.set_categories(cats)
         chart.shape = 4
         projects = chart_properties['projects']
@@ -53,6 +57,9 @@ class ChartManager(object):
             if chart_properties['trendline']:
                 current_series.trendline = Trendline()
                 current_series.trendline.trendlineType = 'linear'
+                line_properties = LineProperties(w=22250, solidFill=ColorChoice(prstClr='black'))
+                current_series.trendline.graphicalProperties = GraphicalProperties(ln=line_properties)
+
         if chart_properties['data_labels']:
             chart.dataLabels = DataLabelList()
             chart.dataLabels.showVal = True
@@ -68,6 +75,7 @@ class ChartManager(object):
         chart.x_axis.tickLblPos = "low"
         if chart_properties['logarithmic_y_axis']:
             chart.y_axis.scaling.logBase = 10
+            chart.y_axis.minorTickMark = "out"
         if "y_axis_min_value" in chart_properties:
             chart.y_axis.scaling.min = chart_properties["y_axis_min_value"]
         if "y_axis_max_value" in chart_properties:
@@ -117,6 +125,8 @@ class ChartManager(object):
             if chart_properties['trendline']:
                 current_series.trendline = Trendline()
                 current_series.trendline.trendlineType = 'linear'
+                line_properties = LineProperties(w=22250, solidFill=ColorChoice(prstClr='black'))
+                current_series.trendline.graphicalProperties = GraphicalProperties(ln=line_properties)
         if chart_properties['data_labels']:
             chart.dataLabels = DataLabelList()
             chart.dataLabels.showVal = True
