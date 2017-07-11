@@ -35,10 +35,15 @@ class ChartManager(object):
         chart.add_data(data, titles_from_data=True)
         if "stacked" in chart_properties:
             chart.grouping = "stacked"
-        if "y_axis_min_value" in chart_properties:
-            chart.y_axis.scaling.min = chart_properties["y_axis_min_value"]
-        if "y_axis_max_value" in chart_properties:
-            chart.y_axis.scaling.max = chart_properties["y_axis_max_value"]
+        if ("y_axis_min_value" in chart_properties) and ("y_axis_max_value" in chart_properties):
+            min_value = chart_properties["y_axis_min_value"]
+            max_value = chart_properties["y_axis_max_value"]
+            chart.y_axis.scaling.min = min_value
+            chart.y_axis.scaling.max = max_value
+            diff = max_value - min_value
+            if diff < 250:
+                chart.y_axis.majorUnit = 10
+                chart.y_axis.minorUnit = 2
         if chart_properties['logarithmic_y_axis']:
             chart.y_axis.scaling.logBase = 10
             chart.y_axis.minorTickMark = "out"
@@ -76,10 +81,11 @@ class ChartManager(object):
         if chart_properties['logarithmic_y_axis']:
             chart.y_axis.scaling.logBase = 10
             chart.y_axis.minorTickMark = "out"
-        if "y_axis_min_value" in chart_properties:
-            chart.y_axis.scaling.min = chart_properties["y_axis_min_value"]
-        if "y_axis_max_value" in chart_properties:
-            chart.y_axis.scaling.max = chart_properties["y_axis_max_value"]
+        if ("y_axis_min_value" in chart_properties) and ("y_axis_max_value" in chart_properties):
+            min_value = chart_properties["y_axis_min_value"]
+            max_value = chart_properties["y_axis_max_value"]
+            chart.y_axis.scaling.min = min_value
+            chart.y_axis.scaling.max = max_value
         data = Reference(
             self.data_sheet, min_col=chart_properties['data_min_column'],
             min_row=chart_properties['data_min_row'],
