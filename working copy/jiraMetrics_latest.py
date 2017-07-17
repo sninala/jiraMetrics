@@ -3,6 +3,7 @@ import re
 import sys
 import time
 import datetime
+import shutil
 from Constants import Constants
 from ConfigParser import SafeConfigParser
 from lib.JiraAPIHandler import JiraAPIHandler
@@ -31,12 +32,20 @@ if __name__ == "__main__":
     program_run_date = today - datetime.timedelta(days=days_to_subtract)
     run_date_yyyy_mm_dd = program_run_date.strftime("%Y-%m-%d")
     out_put_file_name = os.path.join(output_dir, config.get('OUTPUT', 'output_file_name'))
-    out_put_file_name = out_put_file_name.replace('yyyy-mm-dd', run_date_yyyy_mm_dd)
+    weekly_output_file = os.path.join(output_dir, config.get('OUTPUT', 'weekly_output_file_name'))
+    weekly_output_file = weekly_output_file.replace('yyyy-mm-dd', run_date_yyyy_mm_dd)
     if os.path.exists(out_put_file_name):
         try:
             os.rename(out_put_file_name, out_put_file_name)
         except OSError as e:
             print out_put_file_name + ' already in use. Please close it'
+            time.sleep(5)
+            sys.exit(0)
+    if os.path.exists(weekly_output_file):
+        try:
+            os.rename(weekly_output_file, weekly_output_file)
+        except OSError as e:
+            print weekly_output_file + ' already in use. Please close it'
             time.sleep(5)
             sys.exit(0)
     project_properties = ProjectProperties(config)
@@ -69,5 +78,6 @@ if __name__ == "__main__":
         workbook_manager.create_or_update_pivot_table_for(metric_name, out_put_file_name, program_run_date)
 
     workbook_manager.update_charts_for(metrics, out_put_file_name)
+    shutil.copy(out_put_file_name, weekly_output_file)
 
     print "Task Completed"
