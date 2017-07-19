@@ -32,8 +32,16 @@ if __name__ == "__main__":
     program_run_date = today - datetime.timedelta(days=days_to_subtract)
     run_date_yyyy_mm_dd = program_run_date.strftime("%Y-%m-%d")
     out_put_file_name = os.path.join(output_dir, config.get('OUTPUT', 'output_file_name'))
-    weekly_output_file = os.path.join(output_dir, config.get('OUTPUT', 'weekly_output_file_name'))
-    weekly_output_file = weekly_output_file.replace('yyyy-mm-dd', run_date_yyyy_mm_dd)
+    out_put_file_name = out_put_file_name.replace('yyyy-mm-dd', run_date_yyyy_mm_dd)
+    old_output_filename = None
+    for filename in os.listdir(output_dir):
+        match = re.match('(From.*?.xlsx)', filename, re.I)
+        if match:
+            old_output_filename = match.group(0)
+            old_output_filename = os.path.join(output_dir, old_output_filename)
+    if old_output_filename and os.path.exists(old_output_filename) and not os.path.exists(out_put_file_name):
+        shutil.copy(old_output_filename, out_put_file_name)
+
     if os.path.exists(out_put_file_name):
         try:
             os.rename(out_put_file_name, out_put_file_name)
@@ -41,13 +49,7 @@ if __name__ == "__main__":
             print out_put_file_name + ' already in use. Please close it'
             time.sleep(5)
             sys.exit(0)
-    if os.path.exists(weekly_output_file):
-        try:
-            os.rename(weekly_output_file, weekly_output_file)
-        except OSError as e:
-            print weekly_output_file + ' already in use. Please close it'
-            time.sleep(5)
-            sys.exit(0)
+
     project_properties = ProjectProperties(config)
     project_properties.initialize_project_properties()
     with open(config_file, 'wb') as configfile:
@@ -78,6 +80,5 @@ if __name__ == "__main__":
         workbook_manager.create_or_update_pivot_table_for(metric_name, out_put_file_name, program_run_date)
 
     workbook_manager.update_charts_for(metrics, out_put_file_name)
-    shutil.copy(out_put_file_name, weekly_output_file)
 
     print "Task Completed"
