@@ -56,23 +56,33 @@ if __name__ == "__main__":
         config.write(configfile)
     workbook_manager = ExcelWorkBookManager(config)
     if not os.path.exists(out_put_file_name):
-        workbook_manager.create_empty_workbook(out_put_file_name)
-        # Extract data from manually created workbook, if file exists
-        old_workbook_file_name = None
+        last_week_workbook_name = None
         for filename in os.listdir(CURRENT_DIRECTORY):
-            match = re.match('(From.*?.xlsm)', filename, re.I)
-            if match:
-                old_workbook_file_name = match.group(0)
-        if old_workbook_file_name:
-            old_workbook_file_name = os.path.join(CURRENT_DIRECTORY, old_workbook_file_name)
-            if os.path.exists(old_workbook_file_name):
-                workbook_manager.extract_data_from_old_file_and_insert_into_new_file(
-                    old_workbook_file_name, out_put_file_name
-                )
-            else:
-                print "{} File Not exists".format(old_workbook_file_name)
+            match1 = re.match('(From.*?.xlsx)', filename, re.I)
+            if match1:
+                last_week_workbook_name = match1.group(0)
+        if last_week_workbook_name:
+            print "copying content from last week workbook {} to {}".format(last_week_workbook_name, out_put_file_name)
+            last_week_workbook_name = os.path.join(CURRENT_DIRECTORY, last_week_workbook_name)
+            shutil.copy(last_week_workbook_name, out_put_file_name)
         else:
-            print "Manually created workbook not exists in current directory"
+            workbook_manager.create_empty_workbook(out_put_file_name)
+            # Extract data from manually created workbook, if file exists
+            old_workbook_file_name = None
+            for filename in os.listdir(CURRENT_DIRECTORY):
+                match = re.match('(From.*?.xlsm)', filename, re.I)
+                if match:
+                    old_workbook_file_name = match.group(0)
+            if old_workbook_file_name:
+                old_workbook_file_name = os.path.join(CURRENT_DIRECTORY, old_workbook_file_name)
+                if os.path.exists(old_workbook_file_name):
+                    workbook_manager.extract_data_from_old_file_and_insert_into_new_file(
+                        old_workbook_file_name, out_put_file_name
+                    )
+                else:
+                    print "{} File Not exists".format(old_workbook_file_name)
+            else:
+                print "Manually created workbook not exists in current directory"
     jira_api = JiraAPIHandler(config)
     workbook_manager.populate_latest_metrics_from_jira_for_date(program_run_date, jira_api, out_put_file_name)
     metrics = Constants.METRICS
