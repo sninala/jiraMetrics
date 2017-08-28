@@ -2,6 +2,7 @@ import collections
 
 
 class Constants(object):
+    APPLICATION_NAME = "jiraMetrics"
     ROLLUP_SHEET_TITLE = "Rollup"
     ROLLUP_SHEET_COLOR = "BFBFBF"
     ROLLUP_HEADER_ROWS = "2"

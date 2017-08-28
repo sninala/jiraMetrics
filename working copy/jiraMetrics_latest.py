@@ -9,6 +9,8 @@ from ConfigParser import SafeConfigParser
 from lib.JiraAPIHandler import JiraAPIHandler
 from lib.ExcelWorkBookManager import ExcelWorkBookManager
 from lib.ProjectProperties import ProjectProperties
+from lib.EmailSender import EmailSender
+from lib.GoogleDriveAPIHandler import GoogleDriveAPIHandler
 
 if __name__ == "__main__":
     CURRENT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
@@ -90,5 +92,26 @@ if __name__ == "__main__":
         workbook_manager.create_or_update_pivot_table_for(metric_name, out_put_file_name, program_run_date)
 
     workbook_manager.update_charts_for(metrics, out_put_file_name)
+    auto_notification_status = config.get('EMAIL', 'AUTO_NOTIFICATION')
+    if auto_notification_status and auto_notification_status.lower() == 'yes':
+        # upload file to google drive
+        print "uploading output file to Google Drive"
+        google_api_secret_file = config.get('GOOGLE_DRIVE_API', 'api_client_file_name')
+        google_drive_folder = config.get('GOOGLE_DRIVE_API', 'remote_folder_id')
+        google_api_secret_file = os.path.join(CURRENT_DIRECTORY, google_api_secret_file)
+        credentials_directory = os.path.join(CURRENT_DIRECTORY, '.credentials')
+        google_api = GoogleDriveAPIHandler(Constants.APPLICATION_NAME, google_api_secret_file, credentials_directory)
+        google_api.upload_file_to_google_drive_folder(out_put_file_name, google_drive_folder)
+        # Sending Email ###
+        email_subject = "Weekly Jira Report as of " + run_date_yyyy_mm_dd
+        email_body = """
+                        Hi Team:
+    
+                        The report for this week is done and posted at this location:
+    
+                        https://drive.google.com/drive/folders/""" + google_drive_folder + """
+                    """
+        email_sender = EmailSender(config, email_subject, email_body)
+        email_sender.send_email()
 
     print "Task Completed"
