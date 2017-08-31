@@ -105,13 +105,14 @@ if __name__ == "__main__":
         # Sending Email ###
         email_subject = "Weekly Jira Report as of " + run_date_yyyy_mm_dd
         email_body = """
-                        Hi Team:
+                        Hi Team:<br /> &emsp;&emsp;The report for this week is done and posted at this location:<br />
     
-                        The report for this week is done and posted at this location:
-    
-                        https://drive.google.com/drive/folders/""" + google_drive_folder + """
+                        <br />&emsp;https://drive.google.com/drive/folders/""" + google_drive_folder + """
                     """
-        email_sender = EmailSender(config, email_subject, email_body)
-        email_sender.send_email()
+        from_email = config.get('EMAIL', 'FROM_USER')
+        to_emails = config.get('EMAIL', 'TO_USERS')
+        print "Sending email to {}".format(to_emails)
+        email_sender = EmailSender(Constants.APPLICATION_NAME, google_api_secret_file, credentials_directory)
+        email_sender.send_email(from_email, to_emails, email_subject, email_body)
 
     print "Task Completed"
