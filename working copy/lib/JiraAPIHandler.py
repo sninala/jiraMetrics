@@ -1,5 +1,7 @@
 import requests
 import urllib
+import time
+import sys
 from requests.auth import HTTPBasicAuth
 
 
@@ -16,9 +18,18 @@ class JiraAPIHandler(object):
             request_url = self.base_url + query_string + '&maxResults=-1&startAt='+ start_at +'&fields='+fields
         else:
             request_url = self.base_url + query_string + '&maxResults=1'
-        response = requests.get(request_url, auth=HTTPBasicAuth(self.username, self.password))
-        if response.status_code == 200:
-            response_json = response.json()
-            return response_json
+        try:
+            response = requests.get(request_url, auth=HTTPBasicAuth(self.username, self.password))
+        except Exception as e:
+            print "Unable get response from Jira - {}".format(e.message)
+            time.sleep(10)
+            sys.exit(1)
         else:
-            raise Exception("Unable get response from Jira - {}".format(response.reason))
+            if response.status_code == 200:
+                response_json = response.json()
+                return response_json
+            else:
+                print "Unable get response from Jira - {}".format(response.reason)
+                time.sleep(10)
+                sys.exit(1)
+

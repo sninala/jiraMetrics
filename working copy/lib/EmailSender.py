@@ -1,4 +1,6 @@
 import os
+import sys
+import time
 import base64
 import httplib2
 import oauth2client
@@ -74,7 +76,8 @@ class EmailSender(object):
             EmailSender.send_message(service, "me", message_obj)
         except Exception, e:
             print e
-            raise
+            time.sleep(10)
+            sys.exit(1)
 '''
 if __name__ == "__main__":
 
