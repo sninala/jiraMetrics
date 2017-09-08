@@ -103,12 +103,12 @@ if __name__ == "__main__":
         google_api = GoogleDriveAPIHandler(Constants.APPLICATION_NAME, google_api_secret_file, credentials_directory)
         google_api.upload_file_to_google_drive_folder(out_put_file_name, google_drive_folder)
         # Sending Email ###
-        email_subject = "Weekly Jira Report as of " + run_date_yyyy_mm_dd
-        email_body = """
-                        Hi Team:<br /> &emsp;&emsp;The report for this week is done and posted at this location:<br />
-    
-                        <br />&emsp;https://drive.google.com/drive/folders/""" + google_drive_folder + """
-                    """
+        email_subject = config.get('EMAIL', 'SUBJECT')
+        email_subject = email_subject.replace('__CURRENT_WEEK__', run_date_yyyy_mm_dd)
+        email_body_header = config.get('EMAIL', 'BODY_HEADER')
+        email_body_footer = config.get('EMAIL', 'BODY_FOOTER')
+        email_body_footer = email_body_footer.replace('__remote_folder__id__', google_drive_folder)
+        email_body = email_body_header + email_body_footer
         from_email = config.get('EMAIL', 'FROM_USER')
         to_emails = config.get('EMAIL', 'TO_USERS')
         print "Sending email to {}".format(to_emails)
