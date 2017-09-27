@@ -53,11 +53,11 @@ class GoogleDriveAPIHandler(object):
         file_name = os.path.basename(local_file_path)
         file_metadata = {
             'name': file_name,
-            'mimeType': 'application/vnd.google-apps.spreadsheet',
+            'mimeType': 'application/Microsoft Excel',
             "parents": [remote_folder_id]
         }
         media = MediaFileUpload(local_file_path,
-                                mimetype='application/vnd.google-apps.spreadsheet',
+                                mimetype='application/Microsoft Excel',
                                 resumable=True)
         file_obj = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
         print('File ID: %s' % file_obj.get('id'))
@@ -65,7 +65,9 @@ class GoogleDriveAPIHandler(object):
 
 '''
 if __name__ == '__main__':
-    google_api = GoogleDriveAPIHandler('jiraMetrics', '../client_secret.json')
-    local_file = r'D:\jiraMetrics\working copy\output\From 2015-current - Combined 2017-08-21.xlsx'
+    credentials_directory = '../.credentials'
+    google_api = GoogleDriveAPIHandler('JiraMetrics', '../client_secret.json', credentials_directory)
+    local_file = r'D:\ERT\jiraMetrics\working copy\output\From 2015-current - Combined 2017-09-07.xlsx'
     google_api.upload_file_to_google_drive_folder(local_file, '0B66p8j8YNzuMLVllM3dvZTRvYVE')
 '''
+
